@@ -1,0 +1,36 @@
+---
+name: "repositorio_gine"
+title: "Repositorio Brechas Ginecología"
+lang: es-ES
+subject: R Markdown
+author:
+  - first_name: "René"
+    last_name: "Lagos"
+    affiliation: Estudiante Doctorado Salud Pública
+  - first_name: "Macarena"
+    last_name: "Martínez"
+    affiliation: Estudiante Doctorado Salud Pública
+  - first_name: "Andrés"
+    last_name: "González-Santa Cruz"
+    url: https://github.com/AGSCL
+    affiliation: Estudiante Doctorado Salud Pública
+    affiliation_url: 
+    email: gonzalez.santacruz.andres@gmail.com
+    orcid_id: 0000-0002-5166-9121
+description: |
+ Descripción preliminar. En construcción. 
+base_url: https://beta.rstudioconnect.com/content/3776/
+creative_commons: CC BY
+output: 
+  distill::distill_article:
+    theme: theme.css
+---
+
+- [Exploración datos, interpolación, consolidación, etc.](paso1.html)
+
+- [Análisis](paso2.html)
+
+- [Figuras](paso3.html)
+
+- [Sensibilidad](paso4.html)
+  
