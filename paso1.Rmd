@@ -208,7 +208,7 @@ https://www.minsal.cl/subsecretario-de-redes-asistenciales-visito-operativo-de-l
 ```{r setup,include=T}
 if(!require(pacman)){install.packages("pacman")}
 #pacman::p_unlock(lib.loc = pacman::p_path())
-pacman::p_load(devtools, car, tidyverse, janitor, imputeTS, sjPlot, zoo, compareGroups, forecast, lubridate, gganimate, data.table, CausalImpact, panelView, ggforce, tsModel, astsa, plm, gsynth, Synth, CausalMBSTS, parallel, doParallel, PanelMatch, kableExtra, Amelia, missRanger, install=F)
+pacman::p_load(devtools, car, tidyverse, janitor, imputeTS, sjPlot, zoo, compareGroups, forecast, lubridate, gganimate, data.table, CausalImpact, panelView, ggforce, tsModel, astsa, plm, gsynth, Synth, CausalMBSTS, parallel, doParallel, PanelMatch, kableExtra, Amelia, missRanger, pglm, install=F)
 # Calculate the number of cores
 no_cores <- detectCores() - 1
 cl<-makeCluster(no_cores)
@@ -569,6 +569,9 @@ t(sapply(c("HC0", "HC1", "HC2", "HC3", "HC4"), function(x) sqrt(diag(vcovHC(g, t
 
 #COLINEALIDAD
 car::vif(plm(rem_consulta ~ rem_altas+ razon_do, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), model="random"))
+
+anb <- pglm(union ~ wage + exper + rural, UnionWage, family ='negbin',
+model = "pooling", method = "bfgs", print.level = 3, R = 5)
 
 ```
 
