@@ -1,0 +1,1440 @@
+---
+title: "The Politics of Coronavirus in Chile"
+output:
+  html_document: 
+    code_folding: hide
+    fig_height: 6
+    fig_width: 8
+    theme: spacelab
+    toc: yes
+    toc_depth: 5
+    toc_float: yes
+---
+
+  
+<style type="text/css">
+.tablelines table, .tablelines td, .tablelines th {
+  border: 1px solid black;
+  }
+.centrado {
+  text-align: center;
+}
+.table.center {
+  margin-left:auto; 
+  margin-right:auto;
+}
+.table_wrapper{
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+code.r{
+  font-size: 8px;
+}
+body{ /* Normal  */
+    text-align: justify;
+}
+.superbigimage{
+  overflow-y:scroll;
+  white-space: nowrap;
+}
+.superbigimage img{
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
+p.comment {
+  background-color: #FF7F79;
+    padding: 10px;
+  border: 1px solid black;
+  margin-left: 25px;
+  border-radius: 5px;
+  font-style: italic;
+}
+</style>
+  
+  <style>
+  p.comment {
+    background-color: #ff9a9a;
+      padding: 10px;
+    border: 1px solid red;
+    margin-left: 25px;
+    border-radius: 5px;
+    font-style: italic;
+  }
+
+</style>
+
+```{r setup, include=FALSE}
+#arriba puse algunas opciones para que por defecto escondiera el código
+#también cargue algunos estilo .css para que el texto me apareciera justificado, entre otras cosas.
+rm(list=ls());gc()
+local({r <- getOption("repos")
+       r["CRAN"] <- "http://cran.r-project.org" 
+       options(repos=r)
+})
+
+
+`%>%` <- magrittr::`%>%`
+copiar_nombres <- function(x,row.names=FALSE,col.names=TRUE,dec=",",...) {
+  if(class(ungroup(x))[1]=="tbl_df"){
+        if(options()$OutDec=="."){
+            options(OutDec = dec)
+            write.table(format(data.frame(x)),"clipboard",sep="\t",row.names=FALSE,col.names=col.names,...)
+            options(OutDec = ".")
+          return(x)
+        } else {
+            options(OutDec = ",")
+            write.table(format(data.frame(x)),"clipboard",sep="\t",row.names=FALSE,col.names=col.names,...)
+            options(OutDec = ",")
+          return(x)    
+        }
+  } else {
+        if(options()$OutDec=="."){
+            options(OutDec = dec)
+            write.table(format(x),"clipboard",sep="\t",row.names=FALSE,col.names=col.names,...)
+            options(OutDec = ".")
+          return(x)
+        } else {
+            options(OutDec = ",")
+            write.table(format(x),"clipboard",sep="\t",row.names=FALSE,col.names=col.names,...)
+            options(OutDec = ",")
+          return(x)       
+  }
+ }
+}  
+
+unlink('ThePoliticsOfCoronavirusInChile_cache', recursive = TRUE) #para borrar datos alojados en cache
+pacman::p_unlock(lib.loc = .libPaths()) #para no tener problemas reinstalando paquetes
+knitr::opts_chunk$set(echo = TRUE)
+#dejo los paquetes estadísticos que voy a utilizar
+try(devtools::install_github("RamiKrispin/coronavirus", quiet=T,  upgrade="never")) #uquiero que lo reinstale a todo evento
+if(!require(plotly)){install.packages("plotly")}
+if(!require(dplyr)){install.packages("dplyr")}
+if(!require(lubridate)){install.packages("lubridate")}
+if(!require(lubridate)){install.packages("lubridate")}
+if(!require(htmlwidgets)){install.packages("htmlwidgets")}
+library(coronavirus)
+if(!require(tidyverse)){install.packages("tidyverse")}
+if(!require(gganimate)){install.packages("gganimate")}
+if(!require(gapminder)){install.packages("gapminder")}
+if(!require(gifski)){install.packages("gifski")}
+if(!require(readr)){install.packages("readr")}
+if(!require(stringr)){install.packages("stringr")}
+if(!require(data.table)){install.packages("data.table")}
+if(!require(DT)){install.packages("DT")}
+if(!require(ggplot2)){install.packages("ggplot2")}
+if(!require(ggplottimeseries)){devtools:: install_github("brisneve/ggplottimeseries")}
+if(!require(ggseas)){install.packages("ggseas")}
+if(!require(lattice)){install.packages("lattice")}
+if(!require(forecast)){install.packages("forecast")}
+if(!require(its.analysis)){install.packages("its.analysis")}
+if(!require(zoo)){install.packages("zoo")}
+if(!require(panelView)){install.packages("panelView")}
+if(!require(janitor)){install.packages("janitor")}
+if(!require(rjson)){install.packages("rjson")}
+if(!require(estimatr)){install.packages("estimatr")}
+if(!require(jsonlite)){install.packages("jsonlite")}
+if(!require(RJSONIO)){install.packages("RJSONIO")}
+if(!require(RCurl)){install.packages("RCurl")}
+if(!require(textreg)){install.packages("textreg")}
+if(!require(sjPlot)){install.packages("sjPlot")}
+if(!require(geojson)){install.packages("geojson")}
+```
+
+## A worldwide pandemic
+
+In first place, we downloaded the data, count the amount of rows that every country in a single date. The following countries show more than one entry in each single date: 
+
+```{r setting, echo=T, cache= T, paged.print=TRUE, warning=F}
+
+jhudata <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv", sep=",", encoding="UTF-8", header=T)
+
+jhudata %>%
+  tidyr::pivot_longer(cols=starts_with("X"), names_to = "dates", values_to = "sum")%>%
+  rename("country"="Country.Region")%>%
+  dplyr::mutate(dates=stringr::str_sub(dates,2,12))%>%
+  dplyr::mutate(dates=lubridate::parse_date_time(as.character(dates),"%m.%d.%y"))%>%
+  dplyr::mutate(dates=as.Date(as.character(dates)))%>%
+  dplyr::arrange(country, dates)%>%
+  dplyr::group_by(country,dates)%>%
+  add_tally() %>%   #cuento la cantidad de entradas por día que tiene cada país
+  ungroup()%>%  
+  dplyr::filter(n>1)%>% #filtro a los que tienen más de una entrada en cada fecha
+  dplyr::group_by(country)%>%
+  summarise(n=n())%>%datatable()
+
+
+```
+<br>
+
+We explored these countries, and found that Australia, Canada, China France had the information disaggregated by provinces. In contrast, United Kingdom, Netherlands & Denmark had an entry that seems to be the total amount of cases by date. For the former countries, we collapsed the information by getting the sum of the cases by province; but for the latter, we dropped the reports regarding provinces or regions. This let us have one a dataset with one entry by country and date.
+
+<br>
+
+```{r setting2, echo=T, cache= T, paged.print=TRUE, warning=F,message=F}
+coronavirus<-
+jhudata %>%
+  tidyr::pivot_longer(cols=starts_with("X"), names_to = "dates", values_to = "sum")%>%
+  rename("country"="Country.Region")%>%
+  dplyr::mutate(dates=stringr::str_sub(dates,2,12))%>%
+  dplyr::mutate(dates=lubridate::parse_date_time(as.character(dates),"%m.%d.%y"))%>%
+  dplyr::mutate(dates=as.Date(as.character(dates)))%>%
+  dplyr::arrange(country, dates)%>%
+  #elimino a los casos distintos
+  dplyr::mutate(descarte=case_when(country=="United Kingdom"&Province.State!=""~1,
+                          country=="Netherlands"&Province.State!=""~1,
+                          country=="Denmark"&Province.State!=""~1,
+                          TRUE~0))%>%
+  dplyr::filter(descarte==0)%>%
+  #genero una suma para cada fecha por país
+  dplyr::group_by(country, dates)%>%
+  summarise(cases=sum(sum,na.rm=T))%>%
+  dplyr::ungroup()%>%
+  dplyr::group_by(country)%>%
+  dplyr::mutate(ndays_zero=row_number())%>%
+ # dplyr::filter(cases>0)%>%
+  dplyr::ungroup()
+
+```
+
+<br>
+
+Next, we added a 3-letter ISO format to every country. We used data available from the following [webpage] (https://ourworldindata.org/coronavirus-source-data).  However, some countries did not matched any of the available labels, as can be seen in the following table.
+
+<br>
+
+```{r setting3, echo=T, cache= T, paged.print=TRUE, warning=F}
+owid_covid_data <- readr::read_csv("https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid-covid-data.csv")%>%
+  distinct(iso_code,.keep_all=T)
+#Aplicando distinct, nos permite que no se generen valroes duplicados en la combinación de bases de datos.
+
+coronavirus%>%
+    dplyr::left_join(dplyr::select(owid_covid_data,location,iso_code), by=c("country"="location"))%>% dplyr::filter(is.na(iso_code))%>% group_by(country) %>% summarise(perc_days_with_nas=scales::percent(sum(is.na(iso_code))/max(ndays_zero)))%>%datatable()
+  #combinar con otra base de datos que tiene los iso. 
+
+earlyDate<-min(coronavirus$dates)
+
+```
+
+<br>
+
+We decided to work with some of these countries, particularly those with a greater population, testings or more relevant public policies. That is why we only changed the names of "US" "South Korea" and "Taiwan". The rest of countries will be dropped, since they were not eligible for further analysis. Also, we had information of China since January 22, 52 days after the first case in Dec. 1st of 2019. We added 52 days to China.
+
+<br>
+
+```{r setting4, echo=T, cache= T, paged.print=TRUE,eval=T, warning=F}
+coronavirus%>%
+  dplyr::mutate(country=case_when(country=="Korea, South"~"South Korea",
+                                  country=="Taiwan*"~"Taiwan",
+                                  country=="US"~"United States",TRUE~country))%>%
+  #combinar con otra base de datos que tiene los iso. 
+  dplyr::left_join(dplyr::select(owid_covid_data,location,iso_code), by=c("country"="location"))%>% 
+  dplyr::filter(!is.na(iso_code))%>% 
+  #group_by(country) %>% summarise(perc_days_with_nas=sum(is.na(iso_code))/max(ndays))%>%datatable()
+  assign("coronavirus_iso3c",., envir = .GlobalEnv)
+
+
+corona_no_day_zero<-
+coronavirus_iso3c%>%
+  dplyr::group_by(iso_code)%>%
+  dplyr::filter(cases>0)%>%
+  #assigned china +58 days since 01-12-2019
+  dplyr::mutate(ndays=case_when(iso_code=="CHN"~as.numeric(row_number())+58,
+                                TRUE~as.numeric(row_number())))
+
+coronavirus_iso3c%>%
+  dplyr::left_join(select(corona_no_day_zero,iso_code,dates,ndays),by=c("iso_code"="iso_code","dates"="dates"))%>%
+  assign("coronavirus_iso3c",., envir = .GlobalEnv)
+
+```
+
+
+```{r image wrld, echo=T, fig.align='center', fig.pos='H', message=FALSE, warning=F,eval=T}
+##EXAMPLES
+#https://rpubs.com/zheshuen/600593
+#https://rpubs.com/robertoe0/as2covid19
+#https://guangchuangyu.github.io/nCov2019/
+#https://github.com/protzetter/coronavirus/blob/master/coronavirusnewvsrecovered.R
+#https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid-covid-data.csv
+#https://rpubs.com/rdwinkelman/covid19_us_spread_gif
+#https://rstudio-pubs-static.s3.amazonaws.com/580485_db8b4a64c66e40b18c321167d8780309.html
+
+lastDate<-max(coronavirus_iso3c$dates)
+earlyDate<-min(coronavirus_iso3c$dates)
+
+ p<-coronavirus_iso3c %>% group_by(iso_code) %>% 
+  filter(max(cases)>70000) %>% 
+  ggplot(aes(x = dates, y = log(cases),color = iso_code),text = cases)+
+  geom_line(size = 1, alpha = 0.6)+
+  transition_reveal(ndays_zero)+
+  theme_bw()+
+  theme_classic() +
+  geom_segment(aes(xend=max(dates), yend = log(cases)), linetype=2,colour = 'grey') +
+  geom_point(size = 3) + 
+  geom_text(aes(x = max(dates)+.1, label = iso_code), hjust=-0.0) +
+  theme(legend.position = "none", axis.title.x = element_blank())+
+  xlab('Number of Days Since > 100 cases')+
+  ylab('Cummulative Confirmed Case - Log Scale')+
+  ggtitle(paste("Evolution of cases over time as of ",lastDate))+ 
+    theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        plot.margin = margin(5.5, 40, 5.5, 5.5))
+p 
+#animate(p, fps=5,renderer = gifski_renderer("covidevolution.gif"))
+#ggplotly(viz, tooltip = c("text", "size"))
+
+```
+
+```{r image wrld2, eval=T, echo=T, fig.align='center', fig.pos='H', message=FALSE, warning=FALSE}
+library(plotly)
+
+df <- coronavirus_iso3c %>% group_by(iso_code) %>% 
+    dplyr::mutate(date_format=lubridate::parse_date_time(as.character(dates), 'ymd'))%>%
+  dplyr::filter(max(cases)>70000) %>% ungroup()%>%
+  dplyr::mutate(chilean_cases=case_when(iso_code=="CHL"~cases,TRUE~NA_integer_))
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+  #función para generar un conteo acumulativo utilizando como argumento la variable x.
+accumulate_by <- function(dat, var) {
+  var <- lazyeval::f_eval(var, dat)
+  lvls <- plotly:::getLevels(var)
+  dats <- lapply(seq_along(lvls), function(x) {
+    cbind(dat[var %in% lvls[seq(1, x)], ], frame = lvls[[x]])
+  })
+  dplyr::bind_rows(dats)
+}
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+
+fig <- df %>% accumulate_by(~ndays_zero)
+
+#necesito recuperar el número de días desde el primer caso. Pero la regla no es tan fácil
+
+fig <- fig %>%
+  plot_ly(
+    x = ~dates, 
+    y = ~cases,
+    split = ~iso_code,
+    frame = ~frame, 
+    type = 'scatter',
+    mode = 'lines', 
+    line = list(simplyfy = F),
+    hoverinfo="text",
+    text = ~paste('Cum. cases: ', formatC(cases, format="f", big.mark=",", digits=0), '<br>',
+            'Country: ', country, '<br>',
+            'Epi Days:',ndays, '<br>',
+            'Date:',dates))%>%
+  add_trace(y = ~chilean_cases, name = 'Chile', mode = 'markers')
+
+fig <- fig %>% 
+      config(displayModeBar = F,showLink = F) %>%
+          layout(autosize = F,
+                      showlegend = F,
+                 title = "Worldwide Contagion Behavior",
+          xaxis = list(title = "Dates",range = c(as.numeric(as.POSIXct(as.character(earlyDate), format="%Y-%m-%d"))*1000,
+          as.numeric(as.POSIXct(as.character(lastDate), format="%Y-%m-%d"))*1000),
+          type = "date",tickformat = "%m/%d",zeroline = F,autorange = F,showgrid = F),
+          yaxis = list(title = "Cummulative Confirmed Case - Log Scale",zeroline = F,autorange = F,
+                       showgrid = F,range = c(0, 7),type = "log"),
+             annotations = list(x = 1, y = -0.0, text = "Source: Dotted Line= Chile; John Hopkins Datasets", 
+                              showarrow = F, xref='paper', yref='paper', 
+                              xanchor='right', yanchor='auto', xshift=0, yshift=0))
+  
+fig <- fig %>% animation_opts(frame = 100, easing = "elastic",transition = 0, redraw = F) %>%
+      animation_slider(hide = T)
+fig <- fig %>% animation_button(  x = 1, xanchor = "right", y = -0.3, yanchor = "bottom")
+    
+fig
+```
+
+## The Latinamerica case
+text
+
+```{r image la, eval=T, echo=T, fig.align='center', fig.pos='H', message=FALSE, warning=FALSE}
+library(plotly)
+
+df_la <- coronavirus_iso3c %>% group_by(iso_code) %>% 
+    dplyr::mutate(date_format=lubridate::parse_date_time(as.character(dates), 'ymd'))%>%
+  filter( country %in% c('Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Costa Rica', 'Cuba', 'Dominican Republic', 'Ecuador', 'El Salvador', 'Guatemala', 'Haiti', 'Honduras', 'Mexico', 'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Venezuela'))%>%
+  ungroup()%>%
+  dplyr::mutate(chilean_cases=case_when(iso_code=="CHL"~cases,TRUE~NA_integer_))
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+  #función para generar un conteo acumulativo utilizando como argumento la variable x.
+accumulate_by <- function(dat, var) {
+  var <- lazyeval::f_eval(var, dat)
+  lvls <- plotly:::getLevels(var)
+  dats <- lapply(seq_along(lvls), function(x) {
+    cbind(dat[var %in% lvls[seq(1, x)], ], frame = lvls[[x]])
+  })
+  dplyr::bind_rows(dats)
+}
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+
+fig <- df_la %>% accumulate_by(~ndays_zero)
+min_date_la<- df_la %>% dplyr::filter(country=="Brazil",ndays==1)%>% dplyr::select(dates)%>% as.data.frame()
+min_date_la<-as.character.Date(min_date_la)
+#necesito recuperar el número de días desde el primer caso. Pero la regla no es tan fácil
+
+fig <- fig %>%
+  plot_ly(
+    x = ~dates, 
+    y = ~cases,
+    split = ~iso_code,
+    frame = ~frame, 
+    type = 'scatter',
+    mode = 'lines', 
+    line = list(simplyfy = F),
+    hoverinfo="text",
+    text = ~paste('Cum. cases: ', formatC(cases, format="f", big.mark=",", digits=0), '<br>',
+            'Country: ', country, '<br>',
+            'Epi Days:',ndays, '<br>',
+            'Date:',dates)) %>%#add_lines(y = ~cases, x=~dates, name = 'Chile', mode = 'markers',data = filter(df_la, iso_code == "CHL"))
+  add_trace(y = ~chilean_cases, name = 'Chile', mode = 'markers')
+
+fig <- fig %>% 
+      config(displayModeBar = F,showLink = F) %>%
+          layout(autosize = F,
+                      showlegend = F,
+                 title = "Contagion Behavior in Latin America",
+          xaxis = list(title = "Dates",range = c(as.numeric(as.POSIXct(as.character(min_date_la), format="%Y-%m-%d"))*1000,
+          as.numeric(as.POSIXct(as.character(lastDate), format="%Y-%m-%d"))*1000),
+          type = "date",tickformat = "%m/%d",zeroline = F,autorange = F,showgrid = F),
+          yaxis = list(title = "Cummulative Confirmed Case - Log Scale",zeroline = F,autorange = F,
+                       showgrid = F,range = c(0, 7),type = "log"),
+             annotations = list(x = 1, y = -0.0, text = "Dotted line= Chile; Source: John Hopkins Datasets", 
+                              showarrow = F, xref='paper', yref='paper', 
+                              xanchor='right', yanchor='auto', xshift=0, yshift=0))
+  
+fig <- fig %>% animation_opts(frame = 100, easing = "elastic",transition = 0, redraw = F) %>%
+      animation_slider(hide = T,active=0)
+fig <- fig %>% animation_button(  x = 1, xanchor = "right", y = -0.3, yanchor = "bottom")
+
+fig
+#  
+#  
+```
+
+text
+
+## The Case of Chile
+text
+
+```{r image chl, echo=T, fig.align='center', fig.pos='H', message=FALSE, warning=F}
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+invisible(c("Figura de Chile- AGS"))
+
+covidcl <- read.table("https://docs.google.com/spreadsheets/d/1WBUaG7ccZ-YEES91jdfeTytghWMDIJyVke4xDiF2TcU/export?gid=0&format=csv", sep=",", encoding="latin1", header=T) %>%
+      dplyr::mutate(dates_format=as.Date(date, "%m/%d/%y"))%>%
+      dplyr::filter(!is.na(acumulados))
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+  invisible(c("Gráfico AGS"))
+  
+  ult_fech_chl<-as.data.frame(covidcl)%>% 
+    dplyr::filter(ndays==max(ndays))%>% 
+    dplyr::select(dates_format)%>% 
+    as.character.Date()
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+  
+  #esta configuración de fechas permite hacer el gráfico con posixct
+  df <- covidcl %>%
+    dplyr::mutate(date_format=lubridate::parse_date_time(as.character(dates_format), 'ymd'))%>%
+    accumulate_by(~ndays)%>%
+    ungroup()
+  
+  # Figura
+    df %>% 
+    plot_ly(x= ~date_format, y= ~acumulados, frame= ~ndays, 
+            hoverinfo="text",
+            text = ~paste('Nuevos casos: ', nuevos, '<br>',
+                          'Casos Acumulados: ', acumulados, '<br>',
+                          'No. de Días 1er Caso',ndays))%>% 
+      layout(xaxis = list(
+        range = 
+          c(as.numeric(as.POSIXct("2020-03-06", format="%Y-%m-%d"))*1000,
+            as.numeric(as.POSIXct(as.character(ult_fech_chl), format="%Y-%m-%d"))*1000),
+        type = "date",
+        tickformat = "%m/%d"))%>%
+    config(displayModeBar = F,showLink = F) %>%
+    add_lines(frame = ~frame)%>%
+    layout(title = "Contagion Behavior in Chile",
+           yaxis = list(title = 'Cummulative Confirmed Cases', zeroline=F), 
+           xaxis = list(title = paste0(''), zeroline=F),
+           showlegend = FALSE,
+           annotations = list(x = 1, y = -0.0, text = "Source: https://www.gob.cl/coronavirus/cifrasoficiales/", 
+                              showarrow = F, xref='paper', yref='paper', 
+                              xanchor='right', yanchor='auto', xshift=0, yshift=0))%>%
+    animation_opts(frame = 100, easing = "elastic",transition = 0, redraw = F) %>%
+    animation_slider(currentvalue = list(prefix = "Días desde el 1er caso:", xanchor = "left",font = list(color="navyblue")))
+    #      active = 6,
+    #,pad = list(t = 10)
+    #  steps = steps 
+       # saveWidget(p, "p1.html", selfcontained = F, libdir = "lib")
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+```
+
+## Commune/Districts
+
+We got information from the repository available in GitHub and created by `jorgeperezrojas`, regarding the amount of confirmed cases by communes. However, there were some cases in which the transformation of values were problematic due to absence of information, as can be seen in the following table.
+
+<br>
+
+
+```{r setting1_communes, echo=T, message=FALSE, warning=FALSE, cache=TRUE, messages=F, paged.print=TRUE}
+covidcl_comunas <- readr::read_csv("https://raw.githubusercontent.com/jorgeperezrojas/covid19-data/master/csv/long_confirmados_comunas_interpolado.csv")
+covidcl_comunas1 <-read.csv("https://raw.githubusercontent.com/jorgeperezrojas/covid19-data/master/csv/long_confirmados_comunas_interpolado.csv")
+
+rbind(covidcl_comunas1[8024,],
+covidcl_comunas1[8007,])%>% datatable
+
+covidcl_comunas1 <- NULL #elimino los casos con formato UTF-8 y no LATIN1
+```
+
+
+```{r setting2_communes, echo=T, message=FALSE, warning=FALSE, cache=TRUE, messages=F, paged.print=TRUE}
+#formatear cada comuna con un número de días
+#
+covidcl_comunas<- covidcl_comunas %>% 
+          dplyr::mutate(date_format=lubridate::parse_date_time(as.character(fecha), '%m/%d/%Y'))%>%
+          arrange(codigo_region,codigo_comuna,date_format) %>% 
+          group_by(codigo_comuna)%>%
+          dplyr::mutate(ndays_zero=row_number())
+covidcl_comunas_descarte<-
+covidcl_comunas%>%
+  group_by(codigo_comuna)%>%
+  dplyr::filter(positivos_acumulados>0)%>%
+  arrange(codigo_comuna,date_format) %>% 
+  dplyr::mutate(ndays=row_number())%>%
+dplyr::select(codigo_comuna,date_format,ndays)
+
+covidcl_comunas<-
+  covidcl_comunas %>% 
+  dplyr::left_join(covidcl_comunas_descarte, by=c("codigo_comuna"="codigo_comuna","date_format"="date_format"))
+
+```
+
+```{r image chl_communes, echo=T, fig.align='center', fig.pos='H', message=FALSE, warning=F}
+library(plotly)
+
+df_comuna <- covidcl_comunas %>% group_by(comuna) %>% 
+  filter( comuna %in% c("Providencia", "Vitacura", "Ñuñoa", "Maipú", "Puente Alto", "Santiago", "Las Condes"))%>%
+  ungroup()
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+  #función para generar un conteo acumulativo utilizando como argumento la variable x.
+accumulate_by <- function(dat, var) {
+  var <- lazyeval::f_eval(var, dat)
+  lvls <- plotly:::getLevels(var)
+  dats <- lapply(seq_along(lvls), function(x) {
+    cbind(dat[var %in% lvls[seq(1, x)], ], frame = lvls[[x]])
+  })
+  dplyr::bind_rows(dats)
+}
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+
+fig <- df_comuna %>% accumulate_by(~ndays_zero)
+
+fig <- fig %>%
+  plot_ly(
+    x = ~date_format, 
+    y = ~positivos_acumulados,
+    split = ~comuna,
+    frame = ~frame, 
+    type = 'scatter',
+    mode = 'lines', 
+    line = list(simplyfy = F),
+    hoverinfo="text",
+    text = ~paste('Cum. cases: ', formatC(positivos_acumulados, format="f", big.mark=",", digits=0), '<br>',
+            'Country: ', comuna, '<br>',
+            'Epi Days:',ndays, '<br>',
+            'Date:',fecha)) #%>%#add_lines(y = ~cases, x=~dates, name = 'Chile', mode = 'markers',data = filter(df_la, iso_code == "CHL"))
+  #add_trace(y = ~chilean_cases, name = 'Chile', mode = 'markers')
+
+fig <- fig %>% 
+      config(displayModeBar = F,showLink = F) %>%
+          layout(autosize = F,
+                      showlegend = F,
+                 title = "Contagion Behavior in Some Districts of the Metropolitan Region",
+          xaxis = list(title = "Dates",range = c(as.numeric(as.POSIXct(as.character("2020-03-01"), format="%Y-%m-%d"))*1000,
+          as.numeric(as.POSIXct(as.character(lastDate), format="%Y-%m-%d"))*1000),
+          type = "date",tickformat = "%m/%d",zeroline = F,autorange = F,showgrid = F),
+          yaxis = list(title = "Cummulative Confirmed Cases",zeroline = F,autorange = F,
+                       showgrid = F,range = c(0, 7000)),
+             annotations = list(x = 1, y = -0.3, text = "Source: github.com/jorgeperezrojas/covid19-data", 
+                              showarrow = F, xref='paper', yref='paper', 
+                              xanchor='right', yanchor='auto', xshift=0, yshift=0))
+  
+fig <- fig %>% animation_opts(frame = 100, easing = "elastic",transition = 0, redraw = F) %>%
+      animation_slider(hide = T,active=0)
+fig <- fig %>% animation_button(x = 1, xanchor = "right", y = -0.15, yanchor = "bottom")
+
+fig
+```
+
+
+## Changes By Region
+
+<br>
+
+In first place, we selected data from March 03 (first diagnosed in the country), and excluded weekends and holidays. There is no information of regions of Aysén, Arica y Parinacota, and Atacama. Only Santiago had Meters walked. 
+
+
+```{r apple, echo=T, message=FALSE, warning=FALSE, paged.print=TRUE}
+
+applemobilitytrends <- tryCatch(
+                    {
+                        readr::read_csv(paste0("C:/Users/CISS Fondecyt/Dropbox/CGCCovid19CL/ags/applemobilitytrends-",format(Sys.time()-3600*24*1, "%Y-%m-%d"),".csv"))
+                    },
+                    error = function(e){
+                                        tryCatch(
+                                                            {
+                                                                readr::read_csv(paste0("C:/Users/CISS Fondecyt/Dropbox/CGCCovid19CL/ags/applemobilitytrends-",format(Sys.time()-3600*24*2, "%Y-%m-%d"),".csv"))
+                                                            },
+                                                            error = function(e){
+                                                               readr::read_csv(paste0("C:/Users/CISS Fondecyt/Dropbox/CGCCovid19CL/ags/applemobilitytrends-",format(Sys.time()-3600*24*3, "%Y-%m-%d"),".csv"))
+                                                            }
+                                        )
+                    }
+)
+
+feriados<- readr::read_csv("https://docs.google.com/spreadsheets/d/1Kd8SLHFLohGKCuJHa3cxbhkTH9691BCd_1ryCKUM_UA/export?format=csv&id=1Kd8SLHFLohGKCuJHa3cxbhkTH9691BCd_1ryCKUM_UA&gid=208597553",skip=2)%>%
+    dplyr::mutate(`Día`=gsub(" de ", " ", `Día`))
+#agrego el día viernes
+feriados<-feriados%>% rbind(feriados[6,])%>%
+    dplyr::mutate(`Día`=case_when(row_number()==19~"Viernes, 22 Mayo",TRUE~as.character(`Día`)))%>%
+    dplyr::mutate(date_format=lubridate::parse_date_time(`Día`, '%A, %d %B'))
+
+
+#sólo en santiago city tiene la medida con walked. El resto es con driven.
+apple_region_week<-
+applemobilitytrends%>%
+    tidyr::pivot_longer(cols=starts_with("2020"), names_to = "dates", values_to = "value")%>%
+    dplyr::filter(country=="Chile")%>%
+    dplyr::mutate(region=str_replace_all(region, " Region", ""))%>%
+    dplyr::mutate(region=str_replace_all(region, "and", "y"))%>%
+    dplyr::mutate(region=case_when(region=="Magallanes y the Chilean Antarctic"~"Magallanes",
+                                 region=="Aysén del General Carlos Ibáñez del Campo"~"Aysén",
+                                 region=="Libertador General Bernardo O'Higgins"~"O'Higgins",
+                                 region=="Santiago Metropolitan"~"Metropolitana",
+                                 region=="Santiago"~"Santiago City",
+                                 TRUE~region))%>%
+    dplyr::filter(!region %in% c("Aysén", "Arica y Parinacota", "Atacama")) %>%#no tienen información
+    dplyr::filter(transportation_type!="walking")%>%  #sólo stgo city la tiene
+    dplyr::group_by(region)%>%
+    dplyr::mutate(date_format=lubridate::parse_date_time(as.character(dates), 'Ymd'))%>%
+    dplyr::mutate(weekday=weekdays(date_format))%>%
+    dplyr::filter(!weekday %in% c("sábado", "domingo"))%>%
+            dplyr::filter(!date_format %in% unlist(feriados[,"date_format"]))%>%
+    dplyr::filter(date_format>lubridate::parse_date_time("2020-03-03", 'Ymd'))%>%
+    dplyr::mutate(new_normal=case_when(date_format>lubridate::parse_date_time("2020-04-26", 'Ymd')~1,TRUE~0))%>%
+    dplyr::filter(region!="Santiago City")%>%
+    mutate(ValueInterp = zoo::na.approx(value, na.rm=FALSE))
+    #Interpolé esos días: "Los datos del 11 y 12 de mayo no están disponibles y aparecerán como columnas en blanco en el conjunto de     datos"
+ 
+apple_region_all<-
+applemobilitytrends%>%
+    tidyr::pivot_longer(cols=starts_with("2020"), names_to = "dates", values_to = "value")%>%
+    dplyr::filter(country=="Chile")%>%
+    dplyr::mutate(region=str_replace_all(region, " Region", ""))%>%
+    dplyr::mutate(region=str_replace_all(region, "and", "y"))%>%
+    dplyr::mutate(region=case_when(region=="Magallanes y the Chilean Antarctic"~"Magallanes",
+                                 region=="Aysén del General Carlos Ibáñez del Campo"~"Aysén",
+                                 region=="Libertador General Bernardo O'Higgins"~"O'Higgins",
+                                 region=="Santiago Metropolitan"~"Metropolitana",
+                                 region=="Santiago"~"Santiago City",
+                                 TRUE~region))%>%
+    dplyr::filter(!region %in% c("Aysén", "Arica y Parinacota", "Atacama")) %>%#no tienen información
+    dplyr::filter(transportation_type!="walking")%>%  #sólo stgo city la tiene
+    dplyr::group_by(region)%>%
+    dplyr::mutate(date_format=lubridate::parse_date_time(as.character(dates), 'Ymd'))%>%
+    dplyr::mutate(weekday=weekdays(date_format))%>%
+   # dplyr::filter(!weekday %in% c("sábado", "domingo"))%>%
+    #        dplyr::filter(!date_format %in% unlist(feriados[,"date_format"]))%>%
+    dplyr::filter(date_format>lubridate::parse_date_time("2020-03-03", 'Ymd'))%>%
+    dplyr::mutate(new_normal=case_when(date_format>lubridate::parse_date_time("2020-04-26", 'Ymd')~1,TRUE~0))%>%
+    dplyr::filter(region!="Santiago City")%>%
+    mutate(ValueInterp = zoo::na.approx(value, na.rm=FALSE))
+    #Interpolé esos días: "Los datos del 11 y 12 de mayo no están disponibles y aparecerán como columnas en blanco en el conjunto de     datos"
+ 
+
+covidcl_regions<-
+covidcl_comunas %>%
+    group_by(region,date_format)%>%
+    summarise(cases=sum(positivos_acumulados,na.rm=T))%>%
+    dplyr::mutate(new_normal=case_when(date_format>lubridate::parse_date_time("2020-04-26", 'Ymd')~1,TRUE~0))
+
+require(ggplot2)
+plot<-ggplot(apple_region_week, aes(date_format, value, color = factor(new_normal),
+      text=paste('</br>Change in Driven:',paste0(as.character(value),"%"), '</br>Date:',as.character(date_format))))+
+  geom_point() + stat_smooth(size = 1.5) +
+  #geom_vline(xintercept=lubridate::parse_date_time("2020-04-26", 'Ymd'), linetype="longdash") +
+  geom_vline(data=apple_region_week, aes(xintercept=lubridate::parse_date_time("2020-04-26", 'Ymd')),
+               linetype="dashed")+
+  xlab("") +
+  ylab("Apple Mobility Trends (% change from Jan 13)") +
+  ggtitle("Apple Mobility Trends by Region, since New Normality (2020-04-26)")+
+  scale_colour_discrete(name="Experimental\nCondition",
+                          breaks=c("0", "1"), labels=c("Before New Normality", "After New Normality"))+
+      scale_color_brewer(NULL, type = 'qual', palette = 6) + 
+  theme_bw()+
+    facet_wrap(~region)
+##NO TIENE ÑUBLE
+ggplotly(plot, tooltip=c("text"))%>% layout(showlegend = F)
+  
+```
+
+```{r google, echo=T, message=FALSE, warning=FALSE, paged.print=TRUE}
+Global_Mobility_Report <- readr::read_csv("C:/Users/CISS Fondecyt/Dropbox/CGCCovid19CL/ags/Global_Mobility_Report.csv")
+
+google_region <-Global_Mobility_Report %>% 
+                rename("residential"="residential_percent_change_from_baseline",
+                       "workplaces"="workplaces_percent_change_from_baseline")%>%
+  dplyr::select(-country_region_code,-sub_region_2, -retail_and_recreation_percent_change_from_baseline,
+                -grocery_and_pharmacy_percent_change_from_baseline,-parks_percent_change_from_baseline)%>%
+  dplyr::filter(country_region=="Chile") %>% 
+  dplyr::filter(!is.na(sub_region_1))
+
+google_region_week <-  google_region %>%
+            rename("region"="sub_region_1")%>%
+            dplyr::mutate(region=case_when(region=="Magallanes and Chilean Antarctica"~"Magallanes",
+                                 region=="Bio Bio"~"Biobío",
+                                 region=="Santiago Metropolitan Region"~"Metropolitana",
+                                 TRUE~region))%>%
+            dplyr::mutate(date_format=lubridate::parse_date_time(as.character(date), 'Ymd'))%>%
+            dplyr::mutate(weekday=weekdays(date_format))%>%
+            dplyr::filter(!weekday %in% c("sábado", "domingo"))%>%
+            dplyr::filter(!date_format %in% unlist(feriados[,"date_format"]))%>%
+            dplyr::filter(date_format>lubridate::parse_date_time("2020-03-03", 'Ymd'))%>%
+            dplyr::mutate(new_normal=case_when(date_format>lubridate::parse_date_time("2020-04-26", 'Ymd')~1,TRUE~0))%>%
+            dplyr::mutate(new_normal_fac=factor(new_normal))%>%
+            dplyr::group_by(region)%>%
+            dplyr::ungroup()%>%
+            dplyr::mutate(residential = zoo::na.approx(residential, na.rm=FALSE))%>%
+            dplyr::mutate(workplaces = zoo::na.approx(workplaces, na.rm=FALSE))%>%
+          tidyr::pivot_longer(cols=c("workplaces","residential"), names_to = "dimension", values_to = "value")%>%
+          dplyr::mutate(value=round(value, 0))
+
+google_region_all <-  google_region %>%
+            rename("region"="sub_region_1")%>%
+            dplyr::mutate(region=case_when(region=="Magallanes and Chilean Antarctica"~"Magallanes",
+                                 region=="Bio Bio"~"Biobío",
+                                 region=="Santiago Metropolitan Region"~"Metropolitana",
+                                 TRUE~region))%>%
+            dplyr::mutate(date_format=lubridate::parse_date_time(as.character(date), 'Ymd'))%>%
+            dplyr::mutate(weekday=weekdays(date_format))%>%
+            #dplyr::filter(!weekday %in% c("sábado", "domingo"))%>%
+            #dplyr::filter(!date_format %in% unlist(feriados[,"date_format"]))%>%
+            dplyr::filter(date_format>lubridate::parse_date_time("2020-03-03", 'Ymd'))%>%
+            dplyr::mutate(new_normal=case_when(date_format>lubridate::parse_date_time("2020-04-26", 'Ymd')~1,TRUE~0))%>%
+            dplyr::mutate(new_normal_fac=factor(new_normal))%>%
+            dplyr::group_by(region)%>%
+            dplyr::ungroup()%>%
+            dplyr::mutate(residential = zoo::na.approx(residential, na.rm=FALSE))%>%
+            dplyr::mutate(workplaces = zoo::na.approx(workplaces, na.rm=FALSE))%>%
+          tidyr::pivot_longer(cols=c("workplaces","residential"), names_to = "dimension", values_to = "value")%>%
+          dplyr::mutate(value=round(value, 0))
+
+plot2<-ggplot(google_region_week, aes(date_format, value, shape= factor(dimension), color = new_normal_fac,
+                                        text=paste('</br>Dimension: ',dimension,'</br>%:',paste0(as.character(value),"%"), '</br>Date:',as.character(date_format))))+
+    theme(axis.text.x = element_text(angle =25, hjust = 0, size = 8)) +
+  geom_point() + 
+  stat_smooth(size = 1.5) +
+  scale_shape_manual(values=c(3, 1, 17))+
+  geom_smooth(method="loess", se=F, aes(colour=new_normal_fac)) +
+  #geom_vline(xintercept=lubridate::parse_date_time("2020-04-26", 'Ymd'), linetype="longdash") +
+  geom_vline(data=google_region, aes(xintercept=lubridate::parse_date_time("2020-04-26", 'Ymd')),
+               linetype="dashed")+
+  xlab("") +
+  ylab("Apple Mobility Trends (% change from Jan 13)") +
+  ggtitle("Google Mobility Trends by Region, since New Normality (2020-04-26)")+
+  scale_colour_discrete(name="Experimental\nCondition",
+                          breaks=c("0", "1"), labels=c("Before New Normality", "After New Normality"))+
+      scale_color_brewer(NULL, type = 'qual', palette = 6) + 
+  theme_bw()+
+  guides(shape=F,color=F)+
+    facet_wrap(~region)
+
+ggplotly(plot2,tooltip = c("text"))%>% layout(showlegend = F)
+```
+
+<br>
+
+We use a interrupted time series analysis of confirmed cases in Metropolitan Region, but controlling for mobility trends related to driving (Apple) and mobility to workplaces (Google) on all days (incluiding holidays and weekends). We filtered for cases since March 03 (first case) until the last date with available information regarding mobility trends (`r max(google_region_all$date_format)`). 
+
+<br>
+
+```{r exp_cases_region, echo=T, eval=T, out.height='150%'}
+#https://github.com/patrick-eng/its.analysis
+
+#defino el día de hoy
+if (format(Sys.time(),"%H")<12) {
+  today <- format(Sys.time()-3600*24, "%Y-%m-%d")
+} else {
+  today <- format(Sys.time(), "%Y-%m-%d")
+}
+
+#https://raw.githubusercontent.com/MinCiencia/Datos-COVID19/master/output/producto7/PCR_std.csv
+#Dejo las bases de apple y google separadas por variables de interés
+apple_region_exp<-  apple_region_all%>%
+  pivot_wider(names_from = transportation_type, values_from = value)
+
+google_region_exp<-  google_region_all%>%
+  pivot_wider(names_from = dimension, values_from = value)
+
+#
+
+# 
+movilidad_minciencia <- readr::read_csv("https://raw.githubusercontent.com/MinCiencia/Datos-COVID19/master/output/producto33/IndiceDeMovilidad_std.csv")%>%
+  dplyr::mutate(date_format=lubridate::parse_date_time(`Fecha`, 'Ymd'))%>%
+  tidyr::spread(variable, value)%>%
+  dplyr::rename("codigo_comuna"="Codigo comuna")
+pcrs_region <- readr::read_csv("https://raw.githubusercontent.com/MinCiencia/Datos-COVID19/master/output/producto7/PCR_std.csv",
+                                col_types = cols(fecha = col_datetime(format = "%Y-%m-%d")))
+ucis_region <- readr::read_csv("https://raw.githubusercontent.com/MinCiencia/Datos-COVID19/master/output/producto8/UCI_std.csv",
+                                col_types = cols(fecha = col_datetime(format = "%Y-%m-%d")))
+casos_or <-  readr::read_csv("https://raw.githubusercontent.com/ivanMSC/COVID19_Chile/master/covid19_chile.csv")
+casos <-
+casos_or%>%
+dplyr::mutate(date_format=as.Date(Fecha, "%d-%m-%Y"))%>%
+dplyr::rename("confirmado"="Nuevo Confirmado",
+              "muerto"="Nuevo Muerte",
+              "recuperado"="Nuevo Recuperado",
+              "cum_confirmado"="Acum Confirmado",
+              "cum_muerto"="Acum Muerte",
+              "cum_recuperado"="Acum Recuperado",
+              "casos_uci"="Casos UCI")%>%
+  dplyr::filter(Region!="No Informado")%>%
+  dplyr::select(-recuperado, -cum_recuperado,-casos_uci)%>%
+  #sacando fines de semana
+ #             dplyr::mutate(weekday=weekdays(date_format))%>%
+ #             dplyr::filter(!weekday %in% c("sábado", "domingo"))%>%
+ #           dplyr::filter(!date_format %in% unlist(feriados[,"date_format"]))%>%
+      dplyr::mutate(new_normal=case_when(date_format>=lubridate::parse_date_time("2020-04-19", 'Ymd')&date_format<=lubridate::parse_date_time("2020-04-26", 'Ymd')~1,TRUE~0))%>%
+    dplyr::mutate(quarantine=case_when(date_format>lubridate::parse_date_time("2020-05-09", 'Ymd')&
+                                         date_format<=lubridate::parse_date_time("2020-05-16", 'Ymd')~1,TRUE~0))%>%
+      dplyr::mutate(quarantine_date=case_when(date_format>lubridate::parse_date_time("2020-05-16", 'Ymd')~1,TRUE~0))%>%
+    dplyr::mutate(treat=case_when(Region=="Metropolitana"~1,TRUE~0))%>%
+    dplyr::mutate(trat_est=ifelse(treat==1&quarantine==1,1,0))%>%
+  dplyr::left_join(dplyr::select(apple_region_exp,region,date_format,ValueInterp,driving), by=c("Region"="region","date_format"="date_format"))%>% #ver qué quedó afuera
+  dplyr::left_join(dplyr::select(google_region_exp,region,date_format,workplaces,residential), by=c("Region"="region","date_format"="date_format"))%>% #ver qué quedó afuera    
+ #para aproximar variables.
+  dplyr::arrange(Region,date_format)%>%
+  group_by(Region)%>%
+  mutate(roll_muerto = zoo::rollmean(muerto, 7, align = "right",na.pad = TRUE))%>%
+  mutate(roll_confirmado = zoo::rollmean(confirmado, 7, align = "right",na.pad = TRUE))%>%
+  mutate(ValueInterp = zoo::na.approx(ValueInterp, na.rm=F))%>%
+  mutate(driving = zoo::na.approx(driving, na.rm=F))%>%
+  mutate(workplaces = zoo::na.approx(workplaces, na.rm=F))%>%
+  mutate(residential = zoo::na.approx(residential, na.rm=F))%>%
+  mutate(roll_ValueInterp = zoo::rollmean(ValueInterp, 7, align = "right",na.pad = TRUE))%>%
+  mutate(roll_driving = zoo::rollmean(driving, 7, align = "right",na.pad = TRUE))%>%
+  mutate(roll_residential = zoo::rollmean(residential, 7, align = "right",na.pad = TRUE))%>%
+  mutate(roll_workplaces = zoo::rollmean(workplaces, 7, align = "right",na.pad = TRUE))%>%
+  dplyr::filter(date_format>lubridate::parse_date_time("2020-03-03", 'Ymd'))%>%
+  dplyr::arrange(Region,date_format)%>%
+  dplyr::filter(date_format<=max(google_region_all$date_format))#today 
+
+casos_pcrs_uci <-
+casos%>%
+  dplyr::left_join(pcrs_region, by=c("Region"="Region","date_format"="fecha"))%>%
+  dplyr::left_join(ucis_region, by=c("Region"="Region","date_format"="fecha"), suffix=c("","_y"))%>%
+  dplyr::filter(date_format>=lubridate::parse_date_time("2020-04-09", 'Ymd'))%>%
+  dplyr::rename("pcr"="numero",
+                "uci"="numero_y",
+                "cod_region"="Codigo region")%>%
+  dplyr::select(-ends_with("_y"))
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+
+#POR LO QUE TENTIENDO, DEBO ESTABLECER UN TIEMPO DE UNA SEMANA DE INTERRUPCIÓN
+  
+plot_region<-ggplot(casos, aes(x=date_format,y=confirmado,group=Region)) + 
+    geom_rect(data = casos,aes(xmin = lubridate::parse_date_time("2020-05-16", 'Ymd'), xmax = lubridate::parse_date_time(Sys.Date(), 'Ymd'), 
+                               ymin = -Inf, ymax = Inf), fill = "lightblue", alpha = .2)+
+  geom_line(data=casos[which(casos$quarantine_date==1),], aes(y = confirmado),size=1.5, color = "darkred") + 
+  geom_line(data=casos[which(casos$quarantine_date==0),], aes(y = confirmado),size=1.5, color="steelblue")+
+  labs(x="",y="")+
+  sjPlot::theme_sjplot2()+
+  guides(size=F)+
+    facet_wrap(.~Region)+
+  theme(strip.background  = element_blank(),
+        strip.text = element_text(face="bold", size=9))
+  ggtitle("Daily Confirmed Cases By Region")
+  ggplotly(plot_region)%>%
+     layout(scene = list(yaxis = list( range = c(0,max(casos$confirmado)+200))))
+```
+
+<br>
+
+We checked for seasonality of the daily confirmed cases, by specifying a weekly cycles, based on the assumption that ISP underreports cases on weekends.
+
+<br>
+
+
+```{r metro_decomp, eval=T, echo=T, message=FALSE, warning=FALSE, paged.print=TRUE, fig.show=T}
+metro_region<-
+        casos_pcrs_uci%>%
+            dplyr::filter(Region=="Metropolitana")%>%
+      dplyr::mutate(ndays=row_number())%>%
+      dplyr::ungroup()%>%
+      dplyr::select(date_format,ndays,cum_confirmado,confirmado,muerto,ValueInterp,workplaces,quarantine_date)%>%
+      # dplyr::filter(quarantine==1)%>%
+            as.data.frame()
+
+#https://rpubs.com/joser/SeriesTemporalesBasicas  
+
+tsData <- ts(metro_region$confirmado, frequency=7)
+  tsData_Santiago = decompose(tsData)
+#plot(tsData_Santiago, title="Descomposición del número de casos confirmados para Santiago")
+forecast::autoplot(tsData_Santiago, main="Decomposition of the no. of confirmed cases for Metropolitan Region")+
+    theme_bw()+ labs(x="Weeks")
+#  dplyr::select(I0, alpha0, beta, gamma) %>%
+```
+
+<br>
+
+Considering the seasonality of the trends, the following model use a Type-2 sum squares ANCOVA lagged dependent variable model to estimate the difference in means in the number of daily confirmed cases between before and after the consolidation of quarantenes (7 days after May 9th). We also accounted for the lag of the confirmed cases and covariates: daily deaths related to COVID,  and Apple mobility trends (driven), Google mobility trends (residential and workplaces) and PCRs tested.We run 10,000 replications of the main model with randomly drawn samples (bootstrap),
+
+<br>
+
+```{r itsa_region, eval=T, echo=T, message=FALSE, warning=FALSE, paged.print=TRUE, fig.show=T}
+#Using the inputted variables, a Type-2 Sum Squares ANCOVA Lagged Dependent Variable model is fitted which estimates the difference in means between interrupted and non-interrupted time periods, while accounting for the lag of the dependent variable and any further specified covariates.
+#Typically such analyses use Auto-regressive Integrated Moving Average (ARIMA) models to handle the serial dependence of the residuals of a linear model, which is estimated either as part of the ARIMA process or through a standard linear regression modeling process [9,17]. All such time series methods enable the effect of the event to be separated from general trends and serial dependencies in time, thereby enabling valid statistical inferences to be made about whether an intervention has had an effect on a time series.
+   #it uses Type-2 Sum Squares ANCOVA Lagged Dependent Variable model
+   #ITSA model da cuenta de observaciones autocorrelacionadas e impactos dinámicos mediante una regresión de deltas en rezagados. Una vez que se incorporan en el modelo, se controlan. 
+#residual autocorrelation assumptions
+#TSA allows the model to account for baseline levels and trends present in the data therefore allowing us to attribute significant changes to the interruption
+metro_region<-
+        casos_pcrs_uci%>%
+            dplyr::filter(Region=="Metropolitana")%>%
+      dplyr::mutate(ndays=row_number())%>%
+      dplyr::ungroup()%>%
+      dplyr::select(date_format,ndays,confirmado,cum_confirmado,muerto,ValueInterp,workplaces,quarantine_date,residential, pcr)%>%
+      # dplyr::filter(quarantine==1)%>%
+      dplyr::mutate(ndays=row_number())%>%
+            as.data.frame()
+#RDestimate(all~agecell,data=metro_region,cutpoint = 21)
+   
+#Ver con CHANGEPOINT
+##http://www.lancs.ac.uk/~killick/Pub/KillickEckley2011.pdf
+
+itsa_metro_region_quar<-
+        its.analysis::itsa.model(time = "date_format", depvar = "confirmado",data=metro_region,
+                                 interrupt_var = "quarantine_date", covariates = c("muerto", "ValueInterp","workplaces","residential", "pcr"), 
+                                 alpha = 0.05,no.plots = FALSE, bootstrap = TRUE, Reps = 10000, print = TRUE) 
+        #"2020-05-09"
+```
+
+<br>
+
+Also we checked for a discontinuity between the 7-day rolled average of daily confirmed cases by application of quarantine, while controlling for 7-day rolling average covariates (workplaces, residential, and driven). However, in this case, we had to use dates from the first diagnosed on March 3rd.
+
+<br>
+
+```{r rdd_region, eval=T, echo=T, message=FALSE, warning=FALSE, paged.print=TRUE, fig.show=F}
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+ #_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#
+ metro_region<-
+        casos%>%
+            dplyr::filter(Region=="Metropolitana")%>%
+      dplyr::mutate(ndays=row_number())%>%
+      dplyr::ungroup()%>%
+      dplyr::select(date_format,ndays,roll_confirmado,roll_muerto,roll_ValueInterp,roll_workplaces,quarantine_date,roll_residential)%>%
+      # dplyr::filter(quarantine==1)%>%
+      dplyr::mutate(ndays=row_number())%>%
+            as.data.frame()
+ #RDD
+ #no cumplo con los supuesto, demasiado ruido
+#https://rpubs.com/cuborican/RDD
+
+rdd_region=rdd::RDestimate(roll_confirmado~ndays| roll_ValueInterp+ roll_workplaces+ roll_residential,
+                           data=metro_region,cutpoint = 74)
+summary(rdd_region)
+plot(rdd_region)
+title(main="Daily Confirmed Cases in Santiago (7-day rolling avg.)", xlab="Days since 1st case",ylab="Daily Confirmed Cases (7-day roll avg.)")
+abline(v=74, col="red", lwd=3, lty=2)
+#summary(rdd_region)
+```
+
+## Changes By District
+
+```{r pre_DiD, echo=T, eval=T, paged.print=TRUE}
+
+if (format(Sys.time(),"%H")<12) {
+  today <- format(Sys.time()-3600*24*2, "%Y-%m-%d")
+} else {
+  today <- format(Sys.time()-3600*24*1, "%Y-%m-%d")
+}
+
+minsal_casos_comuna<-read_csv("https://raw.githubusercontent.com/MinCiencia/Datos-COVID19/master/output/producto1/Covid-19_std.csv")%>% distinct(`Codigo comuna`,.keep_all=T)%>% dplyr::mutate(codigo_comuna=as.numeric(`Codigo comuna`))%>% dplyr::select(codigo_comuna, Poblacion)
+cuarentenas<-
+  read_csv("https://raw.githubusercontent.com/MinCiencia/Datos-COVID19/master/output/producto29/Cuarentenas-Totales.csv")
+cuarentenas_activas<-
+  cuarentenas%>%
+#dplyr::filter(grepl("Gran Santiago",Detalle))%>%
+  dplyr::filter(`Fecha de Término`>=today)%>%
+  rename("fecha_ini"="Fecha de Inicio",
+         "codigo_comuna"="Código CUT Comuna")%>%
+  dplyr::mutate(fech_ini_num=as.numeric(as.Date(fecha_ini))+7)%>%
+  dplyr::select(codigo_comuna,Nombre,Estado,fecha_ini,fech_ini_num)
+
+cuarentenas_inactivas<-
+  cuarentenas%>%
+  dplyr::filter(`Fecha de Término`<today)
+
+no_han_tenido_cuarentena_antes<-
+ cuarentenas_activas%>%
+  dplyr::filter(!codigo_comuna %in% unlist(cuarentenas_inactivas["Código CUT Comuna"]))
+```
+<br>
+
+We obtained the dataset of each quarantine applied on each district/commune. We selected an amount of communes that were in quarantene up to the present date (`r today`) (n=`r nrow(cuarentenas_activas%>% distinct(codigo_comuna))`). We discarded communes that had at least one quarantene historically (n=`r nrow(no_han_tenido_cuarentena_antes)`). Nonetheless, as can be seen above,  quarantines started in different dates, so we decided to determine a date in which every quarantine started: `r median(no_han_tenido_cuarentena_antes$fecha_ini)`, To this date, we added 7 days more, in order to capture the eventual effects of the measure.
+
+<br>
+
+```{r active_quar_communes, echo=T, eval=T, paged.print=TRUE}
+no_han_tenido_cuarentena_antes %>% 
+  #dplyr::group_by(comuna)%>% 
+knitr::kable(.,format = "html", format.args = list(decimal.mark = ".", big.mark = ","),
+               caption = paste0("Table. Communes that never had cases until ",today),
+               align =rep('c', 101),
+             col.names = c("Commune Code", "Commune", "State","Start of quarantene","Start of quarantene (numeric)")) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"),font_size = 7) %>%
+  kableExtra::scroll_box(width = "100%", height = "375px")
+```
+
+<br>
+
+Next, we discarded for communes that had never had a contagion, as can be seen here:
+
+<br>
+
+```{r discarded_communes, eval=T, echo=T, message=FALSE, warning=FALSE, paged.print=TRUE}
+covidcl_comunas %>% group_by(comuna)%>% summarise(max_days=max(ndays,na.rm=T))%>% dplyr::filter(max_days<1)%>% 
+  knitr::kable(.,format = "html", format.args = list(decimal.mark = ".", big.mark = ","),
+               caption = paste0("Table. Communes with active quaratines at ",today,", that never had one before"),
+               align =rep('c', 101)) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"),font_size = 7) %>%
+  kableExtra::scroll_box(width = "100%", height = "375px")
+invisible(
+  tercer_cuartil_max_days_comunas<-covidcl_comunas %>% group_by(comuna)%>% summarise(max_days=max(ndays,na.rm=T))%>% ungroup()%>% summarise(Third_q=quantile(max_days,.75,na.rm=T))%>% as.numeric()
+)
+```
+
+<br>
+
+However, we still had problems with the irregularity between dates since the first case. This could lead us to wrong results. So, again, from the total (`r covidcl_comunas %>% group_by(comuna)%>% summarise(max_days=max(ndays,na.rm=T))%>% dplyr::filter(max_days>=1)%>% nrow()`), we discarded communes that had less than `r tercer_cuartil_max_days_comunas` days since the first case (n= `r covidcl_comunas %>% group_by(comuna)%>% summarise(max_days=max(ndays,na.rm=T))%>% dplyr::filter(max_days<tercer_cuartil_max_days_comunas)%>% nrow()`), in order to have a comparable subset. This amount of days represent the 25% of communes that had more days since the first diagnosed. The following figure shows the status of each commune of the selected subset.
+
+<br>
+
+```{r prep_DiD, eval=T, echo=T, fig.show='hide', message=FALSE, warning=FALSE, paged.print=TRUE}
+
+#ver si todos los casos se cancelan. Por lo visto, no todos se cancelan
+#cuarentenas_activas%>% dplyr::filter(!`Código CUT Comuna` %in% cuarentenas_inactivas$`Código CUT Comuna`)
+
+#descartar comunas con más  o igual a 70 días
+
+max_days_60_did<-covidcl_comunas %>% group_by(comuna)%>% summarise(max_days=max(ndays,na.rm=T))%>% dplyr::filter(max_days>=tercer_cuartil_max_days_comunas)
+
+#!!!!
+#MATCHEAR POR POBLACIÓN POR COMUNA!!!!
+#https://github.com/MinCiencia/Datos-COVID19/blob/master/output/producto1/Covid-19_std.csv
+#!!!
+icvu <- readxl::read_excel("C:/Users/CISS Fondecyt/Dropbox/CGCCovid19CL/ags/icvu.xlsx")
+minsal_defunc_comuna<-read_csv("https://github.com/MinCiencia/Datos-COVID19/raw/master/output/producto32/2020-Defunciones_std.csv")%>% dplyr::mutate(date_format=as.Date(Fecha, "%m/%d/%y"))%>% janitor::clean_names() %>% dplyr::select(codigo_comuna, defunciones, date_format)
+
+
+covidcl_comunas_num<-  
+covidcl_comunas%>%# codigo_comuna [346]
+  dplyr::filter(!codigo_comuna %in% cuarentenas_inactivas$`Código CUT Comuna`)%>%#  codigo_comuna [317]
+  dplyr::mutate(fech_num=as.numeric(as.Date(date_format)))%>%
+  dplyr::filter(comuna %in% max_days_60_did$comuna)
+
+  
+#janitor::tabyl(ID)
+  require(sqldf)
+covidcl_comuna_cuarentena <- janitor::clean_names(sqldf("SELECT *
+                 FROM covidcl_comunas_num AS x  
+                 LEFT JOIN cuarentenas_activas AS y 
+                 ON x.codigo_comuna == y.codigo_comuna AND 
+                 fech_num >= y.fech_ini_num"))  
+covidcl_comuna_cuarentena %>%
+  dplyr::left_join(minsal_casos_comuna, by=c("codigo_comuna"))%>%
+  dplyr::mutate(treat=if_else(estado!="",1,0,0))%>%
+  dplyr::mutate(comuna_tratada=if_else(codigo_comuna %in% no_han_tenido_cuarentena_antes$codigo_comuna,1,0,0))%>%
+  dplyr::mutate(fech_trat=ifelse(fech_num>=18398,1,0))%>% #la mediana de los activos, 2020-05-09.18391+7, 16 del 5
+  dplyr::mutate(trat_est=ifelse(comuna_tratada==1&fech_trat==1,1,0))%>%
+  dplyr::mutate(date_format=as.Date(fecha, "%m/%d/%y"))%>%
+  dplyr::arrange(codigo_comuna, date_format)%>%
+  group_by(codigo_comuna)%>%
+  dplyr::mutate(positivos=positivos_acumulados-dplyr::lag(positivos_acumulados))%>%
+  janitor::clean_names()%>%
+  dplyr::select(-codigo_comuna_2)%>%
+  dplyr::mutate(comuna_tratada=factor(comuna_tratada))%>%
+  dplyr::mutate(ndays = tidyr::replace_na(ndays, 0))%>%
+  dplyr::mutate(positivos= ifelse(positivos<0,0,positivos))%>% # los casos na's, 
+  dplyr::mutate(positivos= ifelse(positivos<0,0,positivos))%>%
+  dplyr::mutate(contr_est=ifelse(trat_est==1,0,1))%>%
+  dplyr::left_join(icvu,"comuna")%>%
+  dplyr::left_join(minsal_defunc_comuna,c("codigo_comuna"="codigo_comuna","date_format"="date_format"))%>%
+    assign("covidcl_comuna_did",.,envir=.GlobalEnv)
+
+#ver casos con fechas 
+fechas_sin_info_casos<-covidcl_comuna_did %>% dplyr::filter(is.na(positivos))%>% group_by(date_format)%>% summarise(n())
+#covidcl_comuna_did %>% dplyr::filter(!is.na(positivos))%>% group_by(date_format)%>% summarise(n())%>% View()
+
+covidcl_comuna_did%>%
+  dplyr::mutate(positivos = replace_na(positivos, 0))%>%
+  dplyr::mutate(defunciones = replace_na(defunciones, 0))%>%
+  dplyr::arrange(codigo_comuna,date_format)%>%
+  dplyr::group_by(codigo_comuna)%>%
+  dplyr::mutate(defunciones_acum = cumsum(defunciones))%>%
+#  dplyr::filter(!date_format %in% as.Date(unlist(fechas_sin_info_casos[1])))%>%
+assign("covidcl_comuna_did",.,envir=.GlobalEnv)
+
+# dplyr::select(comuna, date_format,ndays,positivos,positivos_acumulados)
+
+positivos_com_quar<- panelView::panelView(positivos~ trat_est + poblacion,
+                    data =  covidcl_comuna_did,
+                              index = c("comuna","date_format"), xlab = "Days passed since 1st Case", ylab = "Communes",
+                              axis.lab.gap = c(7,1),  by.timing = TRUE,  pre.post = TRUE,legend.labs = c("Did not have an active\n case at the time", "Communes that \nnever had Quarantene", "Communes that \nhad Quarantene", "Communes w/ \nQuarantene"), 
+                              background = "white", cex.main = 20, cex.axis= 6, cex.lab = 8, cex.legend = 6,
+                     axis.lab = "both") +
+                      labs(caption= paste0("Note. Selection of Communes/Districts that never had quarantines vs. Communes/Districts with Quarantines up to present date; \nSource: https://raw.githubusercontent.com/MinCiencia/Datos-COVID19/master/output/producto29/Cuarentenas-Totales.csv;\n"), 
+                           title=paste0("Figure. Available Communes/Districts(>=",tercer_cuartil_max_days_comunas," days)")) +
+                      theme(plot.title = element_text(color="darkblue", size=13.5))+
+                      theme(plot.caption = element_text(hjust = 0, face= "italic"))+
+      theme(axis.text.x = element_text(angle =25, hjust = 0, size = 8)) 
+``` 
+
+```{r plot_panelview2, echo=T, eval=T, out.height='150%', fig.align='center'}
+#Default is fig.width = 7 and fig.height = 5 (in inches = debiese ser 7*2.4= 16.8
+#fig.dim = c(6, 4)
+plot(positivos_com_quar)
+```
+
+```{r plot_did, echo=T, eval=T, paged.print=TRUE}
+to_string <- as_labeller(c(`0` = "Before Quarantene", `1` = "After Quarantine"))
+
+plot_did<-ggplot(covidcl_comuna_did, aes(x = comuna_tratada, y = defunciones)) +
+  scale_x_discrete(breaks=c("0","1"),
+        labels=c("Communes wo/ \n quarantine", "Communes w/ \n quarantine"))+
+  geom_jitter(size = 0.5, alpha = 0.2,color = "navyblue") +
+  stat_summary(geom = "pointrange", size = 1)+
+   stat_summary(fun.data=mean_cl_normal,geom="errorbar", width=0.5)+
+    #           text = paste("median:", number_si(median))) +
+  facet_wrap(~ fech_trat, labeller= to_string)+
+  labs(title=paste0("Comparison between communes, after May 16th  (>=",tercer_cuartil_max_days_comunas,"days)"), x="", y="No. confirmed cases")+
+  ylim(0,25)+
+  sjPlot::theme_sjplot2()
+
+  
+ggplotly(plot_did, tooltip = "text")
+```
+
+```{r comp_treat_quarantene, echo=T, eval=T, paged.print=TRUE,wanings=F}
+#si  no sale bien, poner , results = "asis"
+#regions_communes<- hum.names <- as_labeller(c(`Antofagasta` = "Antof", `Araucanía` = "Arauc",`Atacama` = "Atacam", `Aysén` = "Aysen",`Biobío` = "Bío-Bío", `Coquimbo` = "Coquim",`Los Lagos` = "Lagos",`Lagos` = "Coquim",`Coquimbo` = "Coquim",
+#                                              `Coquimbo` = "Coquim",`Coquimbo` = "Coquim",`Coquimbo` = "Coquim",
+#                                              `Coquimbo` = "Coquim"))
+
+res_did_comunas_1<-plm::plm(defunciones ~ treat, 
+                      data = covidcl_comuna_did,
+                     index = c("codigo_comuna", "date_format"), 
+                     model = "within", 
+                      effect = "twoways")
+res_did_comunas_15<-plm::plm(defunciones ~ treat+ndays, 
+                      data = covidcl_comuna_did,
+                     index = c("codigo_comuna", "date_format"), 
+                     model = "within", 
+                      effect = "twoways")
+res_did_comunas_2<-plm::plm(defunciones ~ treat+ndays+positivos, 
+                      data = covidcl_comuna_did,
+                     index = c("codigo_comuna", "date_format"), 
+                     model = "within", 
+                      effect = "twoways")
+#coeftest(model, function(x) vcovHC(x, type = 'sss'))
+
+sjPlot::tab_model(res_did_comunas_1,res_did_comunas_15,res_did_comunas_2,
+                  pred.labels = c("Daily Reported Deaths", "No. Days Since 1st Case", "Daily Reported Cases"),
+                  dv.labels = c("First Model","Second Model", "Third Model"),
+                  string.pred = "Coeffcient",
+                  string.ci = "Conf. Int (95%)",
+                  vcov.fun = "HC",
+                  vcov.type = "HC1",
+                  show.icc=T)# You haove to save the table in html format.
+
+summary(res_did_comunas_2)
+
+#Standard errors that account
+#for heteroskedasticity are often called robust because they do not depend on the fairly strong assumption
+#of constant error variance. The function lm_robust is nearly identical to lm but it allows us to specify
+#a new argument se_type to indicate what kinds of standard errors we want to use.
+
+plot<-
+ggplot(covidcl_comuna_did, 
+                       aes(x = date_format, y = positivos, group = comuna, color = factor(treat))) +  
+    geom_line() + 
+    theme_classic() +
+ # facet_grid(~region,labeller=regions_communes)+
+   facet_wrap(~region, nrow=2)+
+    theme(axis.text.x = element_text(angle = 90, vjust=0.5, size= 12),
+          plot.caption = element_text(size= 8)) +
+        theme(strip.text.x = element_text(size = 7, color = "blue", face = "bold.italic"),
+             strip.background = element_rect(color="black", fill="gray80", size=1.5, linetype="solid"))+
+    labs(
+      title = paste0("Linear trend for Communes by Region (>=",tercer_cuartil_max_days_comunas, "days)"),
+      x = "",
+      y = "Cum.Cases",
+      color = "Quarantenes",
+      subtitle= "") + 
+  theme(plot.caption = element_text(hjust = 0))+
+    sjPlot::theme_sjplot2()+
+    theme(legend.position="bottom")+
+    guides(color=F)
+
+invisible="x"
+if (invisible==1){
+  ggplotly(plot) %>%
+    layout(legend = list(title= list(text = "<b>Quarantene</b>"),
+                         orientation = "h",   # show entries horizontally
+                         xanchor = "center",  # use center of legend as anchor
+                         x = 0.5, y=-.1))  
+}
+#chilecracia
+#"https://chilecracia.org/3cde90e2-a0bf-4f72-b2bd-f198ec9730c6"
+```
+
+<br>
+
+We estimated a regression model for communes that had more than `r tercer_cuartil_max_days_comunas` days since the first diagnosed. Results show that within communes that were declared in quarantine until today, showed an average increase of `r round(res_did_comunas_2$coefficients[1],0)`  cases,
+
+<br>
+
+
+```{r pre_plot_comp_treat_quarantene, echo=T, eval=T, paged.print=TRUE, fig.show='hide'}
+
+# comuna_tratada fech_trat trat_est
+plot_line_communes<-covidcl_comuna_did %>%
+  dplyr::mutate(date_format=as.Date(as.character(date_format)))%>%
+  ggplot(aes(x=date_format, y=defunciones_acum))+
+  geom_line(data=covidcl_comuna_did %>% dplyr::filter(comuna_tratada==0), aes(group=comuna), color="grey", size=0.5, alpha=0.5) +
+  geom_line(data=covidcl_comuna_did %>% dplyr::filter(comuna_tratada==1, date_format<="2020-05-16"),aes(group=comuna), color="tomato", size=0.8,alpha=.8)+
+  geom_line(data=covidcl_comuna_did %>% dplyr::filter(trat_est==1),aes(group=comuna), color="darkred", size=0.8, alpha=.5)+
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=14),
+      panel.grid = element_blank()
+    )+
+      sjPlot::theme_sjplot2()+
+    labs(title=paste0("Linear trend for Communes (>=",tercer_cuartil_max_days_comunas, "days)"),
+         y="Cumulative Deaths",
+         x= "")+
+  ylim(0,max(covidcl_comuna_did$defunciones_acum))+
+    scale_x_date(breaks=scales::date_breaks("2 weeks"),date_labels = "%b-%d-\n%Y")+
+annotate("rect", xmin = as.Date("2020-05-16"), xmax = max(covidcl_comuna_did$date_format), 
+             ymin = -Inf, ymax = Inf, fill = "red", color = NA, alpha = 0.1)+
+  geom_vline(xintercept =as.Date("2020-05-16"),color="red")
+
+#comuna_tratada fech_trat trat_est
+```
+
+```{r plot_comp_treat_quarantene, echo=T, eval=T, paged.print=TRUE}
+#plot$data$type<-plot$data %>% dplyr::mutate(type=ifelse(type=="tr","Communes w/ quarantine (before)",
+#                                        ifelse(type=="co", "Communes wo/ quarantine",
+#                                               "Communes w/ quarantine (after)")))%>% dplyr::select(type)%>% unlist()
+ggplotly(plot_line_communes, tooltip = c("text","y","x","group")) %>% 
+ # config(displayModeBar = F) %>%
+  layout(legend = list(title= list(text = "<b>Status</b>"),
+                       orientation = "h",   # show entries horizontally
+                       xanchor = "center",  # use center of legend as anchor
+                       x = 0.5, y=-.1),
+         xaxis = list(size = 3))%>%
+    layout(xaxis = list(titlefont = list(size = 10), tickfont = list(size = 10)))%>%
+  layout( annotations = 
+           list(x = 1, y = -0.15, #position of text adjust as needed 
+                text = paste0("Notes:Gray= Contol Communes; Communes with more than ",tercer_cuartil_max_days_comunas," days since the first case;\n Orange= Communes with quarantine, before May 16th; Red= Communes with quarantine, after May 16th"),
+                showarrow = F, xref='paper', yref='paper', 
+                xanchor='right', yanchor='auto', xshift=0, yshift=0,
+                font=list(size=9, color="navyblue"))
+  )%>%
+layout(shapes = list(
+               list(type = "rect",
+                    fillcolor = "blue", line = list(color = "blue"), 
+                    x0 = as.numeric(as.Date("2020-05-16")), x1 = as.numeric(max(covidcl_comuna_did$date_format)), xref = "canvas",
+                    y0 = 0, y1 = 1000, yref = "paper")
+               )
+       )
+if(invisible=="si"){
+        layout(
+      shapes=list(
+          type = "line",  
+          line = list(color = "darkred"),
+          x0 = 18336,  x1 = 18340, xref="paper",
+          y0 = 0, y1 = 100000, yref = "y"
+        )
+      )
+
+}  #  .. .. ..$ x         : num [1:11339] 18336 18337 18338 18339 18340 ...
+#$ range         : num [1:2] 18332 18422
+```
+
+## CENSO
+
+```{r json_vivienda_censo, echo=T,eval=T, paged.print=TRUE}
+invisible="otro"
+  try(
+if(invisible=="nuevosd"){
+  #https://stackoverflow.com/questions/53413271/how-to-load-geojson-data-from-a-featurecollection-into-a-data-frame
+  #http://geoine-ine-chile.opendata.arcgis.com/datasets/a90cf11da90f4d0c86934b8636fd9779_5/geoservice
+  #https://github.com/ropensci/geojson
+  
+  #sólo entrega el 10, 10102
+      censo2017 = rjson::fromJSON(file="http://api.datosabiertos.ine.cl/api/v2/datastreams/CENSO-2017-MICRO-DE-VIVIE/data.ajson/?auth_key=1e259c40cce5f8df145b2187e954914692752b8b&limit=50000000&")
+      #error 502, bad gateway
+      censo_2017_df_json<-data.frame(matrix(unlist(censo2017$result), nrow=length(censo2017$result), byrow=T)) %>%
+        janitor::row_to_names(row_number = 1)
+
+      censo2017_geojson = rjson::fromJSON(file="https://opendata.arcgis.com/datasets/a90cf11da90f4d0c86934b8636fd9779_5.geojson")
+   
+      
+      censo2017_geojson2<-geojsonR::FROM_GeoJson(url_file_string="https://opendata.arcgis.com/datasets/a90cf11da90f4d0c86934b8636fd9779_5.geojson")
+      censo2017_geojson2_stread <- sf::st_read(censo2017_geojson2)
+
+      
+      censo2017_geojson3 <- rgdal::readOGR("https://opendata.arcgis.com/datasets/a90cf11da90f4d0c86934b8636fd9779_5.geojson")
+      leaflet(censo2017_geojson3)
+      
+      censo2017_geojson3_stread <- sf::st_read(censo2017_geojson3)
+  }
+)
+
+#https://redatam-ine.ine.cl/manuales/Manual-Usuario.pdf
+# https://www.censo2017.cl/descargas/home/sintesis-de-resultados-censo2017.pdf
+
+#Porcentaje de viviendas con hacinamiento:
+#Corresponde al porcentaje de viviendas particulares ocupadas con moradores presentes que tienen igual o más de 2,5 personas por pieza de uso exclusivo como dormitorio. Este cálculo se realiza 
+#considerando a todas las personas censadas en la vivienda y las piezas declaradas exclusivamente como dormitorio.
+
+#VARIABLES INVOLUCRADAS
+#En esta BD sólo es a nivel de viviendax
+# - ID_ZONA_LOC= Identificador único de zona/localidad (1-16053)
+# - NVIV= Número de la vivienda (1-4296)
+
+# - P02= Ocupación de la vivienda, sólo con moradores presentes (1)
+# - VIV_PART= Total de viviendas particulares: Corresponde al total de viviendas particulares efectivamente censadas
+# - PERSONAS= Número total de personas: Corresponde al total de personas efectivamente censada
+# - CANT_PER= Cantidad de persona (0-9999) 
+# - P04= Número de piezas usadas exclusivamente como dormitorio /(0-6) /6 o más piezas
+# P04 182.798 3,32%
+
+# Reenumeración de variables desde base de datos de viviendas colectivas y personas en tránsito a base de datos de viviendas particulares
+  # P11
+  # P04COMUNA, SE RECONVIERTE P11COMUNA
+#(1) Se excluyen las viviendas donde no se declaró información sobre las piezas de uso exclusivo para dormir.
+  #98 No aplica, 99 Missing
+
+censo_2017_df <- readr::read_delim("C:/Users/CISS Fondecyt/Dropbox/CGCCovid19CL/ags/Microdato_Censo2017-Viviendas.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+
+censo_2017_df_HAC <-
+    censo_2017_df%>%
+      dplyr::filter(!P01 %in% c(8,9,10))%>% #Se descartan viviendas colectivas (Vivienda colectiva, Operativo personas en tránsito (no es vivienda), Operativo calle (no es vivienda))
+      dplyr::filter(P02==1)%>%# sólo con moradores presentes (1) #baja a 5,521,482 desde 6,499,574
+      dplyr::select(REGION, PROVINCIA, COMUNA, ID_ZONA_LOC,NVIV,CANT_PER, P02,P04)%>%
+    #  dplyr::mutate(P04=if_else(as.numeric(P04)>6,NA_real_,as.numeric(P04)))%>% 
+      # janitor::tabyl(P04) %>% #responden 0 piezas los siguientes:  17,413 0.003153682
+      dplyr::mutate(HAC=as.numeric(CANT_PER)/as.numeric(P04))%>%
+      dplyr::mutate(HAC=replace(HAC, is.na(HAC), 5))%>%
+      dplyr::mutate(HAC=replace(HAC,HAC== Inf, 5))
+
+# Exploratorio
+
+hist(censo_2017_df_HAC$P04, breaks=500, xlim=c(0,quantile(censo_2017_df_HAC$P04,.99)),
+       main="Histogram of No. of Restrooms")   
+#Tiene muchos outliers, que representan no respuestas (98 o 99s)
+hist(censo_2017_df_HAC$CANT_PER, breaks=500, xlim=c(0,quantile(censo_2017_df_HAC$CANT_PER,.99)),
+       main="Histogram of No. of People")  
+#
+hist(censo_2017_df_HAC$HAC, breaks=500, xlim=c(0,quantile(censo_2017_df_HAC$HAC,.99)),
+       main="Histogram of Overcrowding Scores")
+#https://www.censo2017.cl/wp-content/uploads/2018/05/presentacion_de_la_segunda_entrega_de_resultados_censo2017.pdf  
+#3,1 en el período al 2017. Se condice
+
+
+#Viviendas Particulares Ocupadas con Moradores Presentes 5.508.441
+censo_2017_df_cond_hac <-
+  censo_2017_df_HAC%>%
+  dplyr::filter(P04!=98|P04!=99)%>%
+    #dplyr::filter(CANT_PER>0)%>% #lo decidí sacar para ver si rescataba más casos
+    #dplyr::filter(P04>0)%>% #pruebo, porque puede que no tengan.  También, se
+#consideran hacinadas aquellas personas o familias que viven en viviendas sin habitaciones de uso exclusivo como dormitorio
+    dplyr::mutate(cond_hac=if_else(HAC>2.4,1,0,1))%>%
+    dplyr::mutate(nombre_region=dplyr::recode(as.character(REGION),
+                                              "2"="Antofagasta",
+                                              "9"="Araucanía",
+                                              "15"="Arica y Parinacota",
+                                              "3"="Atacama",
+                                              "11"="Aysén",
+                                              "8"="Biobío",
+                                              "4"="Coquimbo",
+                                              "10"="Los Lagos",
+                                              "14"="Los Ríos",
+                                              "12"="Magallanes",
+                                              "7"="Maule",
+                                              "13"="Metropolitana",
+                                              "16"="Ñuble",
+                                              "6"="O'Higgins",
+                                              "1"="Tarapacá",
+                                              "5"="Valparaíso"))
+
+    data.table::data.table(prop.table(table(censo_2017_df_cond_hac$cond_hac,
+                     censo_2017_df_cond_hac$nombre_region),2)*100) %>%
+      dplyr::mutate(N=round(N,2))%>%
+      dplyr::filter(V1>0)%>%
+      dplyr::rename("Región"="V2","Percentage"="N")%>%
+      dplyr::select(-V1)%>%
+      knitr::kable(.,format = "html")
+    
+round(prop.table(table(censo_2017_df_cond_hac$cond_hac))*100,1)
+ #debbería llegar a 7,3 nacional  
+#Tabla 8: Índice de Hacinamiento (>2,4)
+#Sin hacinamiento 4.936.302
+#Hacinamiento medio 347.213
+#Hacinamiento crítico 42.128
+#http://observatoriodoc.colabora.minvu.cl/Documentos%20compartidos/Metodolog%C3%ADa%20de%20c%C3%A1lculo%20del%20D%C3%A9ficit%20Habitacional%20Cuantitativo%20ajustada%20al%20Censo%202017.pdf
+#hacinados, debisen ser 347213+42128= 389,341
+table(censo_2017_df_cond_hac$cond_hac)
+#llegué al número= 389,341 , pero no al porcentaeje
+
+#buscar los códigos, me parece q están en agrupado
+#https://datosabiertos.ine.cl/dataviews/250576/censo-2017-microdatos-de-viviendas-segun-region-provincia-y-comuna/
+
+censo_sexo_edad <- readxl::read_excel("C:/Users/CISS Fondecyt/Dropbox/CGCCovid19CL/ags/Cantidad-de-Personas-por-Sexo-y-Edad.xlsx", 
+    sheet = "COMUNAS", col_types = c("skip", 
+        "text", "text", "text", "text", "text", 
+        "text", "text", "numeric", "numeric", 
+        "numeric"))
+```
+
+```{r session_info, echo=T, paged.print=TRUE}
+save.image("prueba_politics.RData")
+sessionInfo()
+```
+
+
+
+
+
+
+
+
+
