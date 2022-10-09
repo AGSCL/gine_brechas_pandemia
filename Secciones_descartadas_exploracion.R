@@ -26,7 +26,7 @@ invisible(c("The “frequency” is the number of observations before the season
 
 <br>
   
-  ```{r setting_prev_a_decomp, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T,results='asis'}
+```{r setting_prev_a_decomp, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T,results='asis'}
 #https://otexts.com/fpp2/decomposition.html
 headings <- c('=4obs.', '=17.5obs.', '=52.4obs.','=Multiple(4 & 52.4)')
 
@@ -67,7 +67,7 @@ mstl(tsData_m, lambda = NULL) %>% autoplot()+
 
 <br>
   
-  ```{r setting_prev_b_ACF, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 2. Correlograms of Series"}
+```{r setting_prev_b_ACF, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 2. Correlograms of Series"}
 #acf() calcula la función de autocorrelación simple de una serie temporal, y pacf() la función de autocorrelación parcial. En ambos casos, por defecto se muestra el gráfico con bandas de confianza al 95%.
 ggAcf(data15a64_rn$hosp_trauma,20,main="3.a.Autocorreation Plot of the Series of Trauma Hospitalizations")+ #data15a64_rn$hosp_trauma
   theme_sjplot()+
@@ -124,7 +124,7 @@ lags_pacf<-ggPacf(tsData1,20)$data %>% dplyr::arrange(desc(abs(Freq)))%>% slice(
 
 <br>
   
-  ```{r setting_prev_c_compare_models, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 3. Comparison of Forecasting Methods, in Mean Square Error (MSE)"}
+```{r setting_prev_c_compare_models, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 3. Comparison of Forecasting Methods, in Mean Square Error (MSE)"}
 fets <- function(x, h) {
   forecast(ets(x), h = h)
 }
@@ -214,7 +214,7 @@ ets1<-ets(tsData1)
 
 <br>
   
-  ```{r setting_prev_d, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T}
+```{r setting_prev_d, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T}
 #x1<-as.numeric(ts_data15a64_rn[,"offset"])
 #Decisión de ocupar automáticos: https://robjhyndman.com/talks/MelbourneRUG.pdf
 
@@ -244,7 +244,7 @@ ARIMA_fit<-auto.arima(data.frame(data15a64_rn[1:post.period[1],"hosp_trauma"]), 
 
 <br>
   
-  ```{r setting_prev_d_plot_fitted_vs_actual, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 5. Actual linear trend vs. Fitted Line (ARIMA 1,1,2)",fig.height=12}
+```{r setting_prev_d_plot_fitted_vs_actual, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 5. Actual linear trend vs. Fitted Line (ARIMA 1,1,2)",fig.height=12}
 #will be to fit a model to the data, and then use the forecast() function to produce forecasts from that model
 data_forecast_arima112<-forecast(ARIMA_fit, h=rn_summ_data15a64$diff,bootstrap=5000)
 #ts(data15a64_rn[1:post.period[1],"hosp_trauma"]) %>% ets() %>% forecast(h=rn_summ_data15a64$diff,bootstrap=5000) %>% autoplot()
@@ -308,7 +308,7 @@ actual_vs_fitted_and_forecast_arima%>%
 
 <br>
   
-  ```{r setting_prev_e_check_resid1_general, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 6. Residuals of the Model"}
+```{r setting_prev_e_check_resid1_general, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 6. Residuals of the Model"}
 checkresiduals(ARIMA_fit)
 #ARIMA(2,1,2); #ARIMA(1,1,2); #ARIMA(2,1,2); # ARIMA(2,1,3)
 ```
@@ -321,7 +321,7 @@ Below we may see a detailed figure of autocorrelation and partial autocorrelatio
 
 <br>
   
-  ```{r setting_prev_e_check_resid2, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 7. Correlograms of Residuals"}
+```{r setting_prev_e_check_resid2, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 7. Correlograms of Residuals"}
 invisible(c("IGUAL LOS RESIDUOS NO SE DISTIRBUYEN NORMALMENTE!!!!!!!!!!!!!!!!!!!!!!!!!"))
 
 #One simple "sanity check" would be to find series where your forecast is higher than the highest historical observation, or higher than the historical 90% quantile. This often signals trouble, except possibly for very new products that are ramping up.
@@ -351,7 +351,7 @@ lags_pacf<-ggPacf(ARIMA_fit$residuals,400)$data %>% dplyr::arrange(desc(abs(Freq
 
 <br>
   
-  ```{r setting_prev_f_resid_vs_fit, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 8. Scatter-plot of Residuals vs. Fitted ARIMA model"}
+```{r setting_prev_f_resid_vs_fit, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 8. Scatter-plot of Residuals vs. Fitted ARIMA model"}
 #plot(,,type="p",pch=9, col="blue",xlab="Fitted",ylab="Resid.")
 #abline(h=0,lty=2,lwd=2)
 
@@ -374,7 +374,7 @@ cbind(Fitted = ARIMA_fit$fitted,
 
 <br>
   
-  ```{r setting_prev_g_tbats_multiple_time_seasonality, echo=T, cache= T, paged.print=TRUE, warning=F, eval=F, fig.cap="Figure 3. NO LO OCUPO"}
+```{r setting_prev_g_tbats_multiple_time_seasonality, echo=T, cache= T, paged.print=TRUE, warning=F, eval=F, fig.cap="Figure 3. NO LO OCUPO"}
 
 tsData52.4%>% tbats()
 #TBATS(1, {1,1}, -, {<52.4,6>})= el primer 1 significa que no es necesario hace trasformación box-cox; los 1 y 1 significa que hay un error ARMA de 1 y 1; no hay amortiguación/damping--> lo final dice de los términos fourier; se seleccionaron 6
@@ -438,7 +438,7 @@ print(itsa_metro_region_quar)
   
   <br>
   
-  ```{r itsa_plot,echo=T,fig.align='center', fig.pos='H', eval=T, message=FALSE, warning=F, fig.align='center', fig.cap= "Figure 12. Interrupted Time-Series Analysis of Respiratory Hospitalizations in Inervention Period (2019-10-18)", error=T}
+```{r itsa_plot,echo=T,fig.align='center', fig.pos='H', eval=T, message=FALSE, warning=F, fig.align='center', fig.cap= "Figure 12. Interrupted Time-Series Analysis of Respiratory Hospitalizations in Inervention Period (2019-10-18)", error=T}
 ggplot_itsa<-itsa_metro_region_quar$itsa.plot
 
 print(ggplot_itsa)
@@ -456,7 +456,7 @@ print(ggplot_itsa)
 
 <br>
   
-  ```{r exp_plot_lines_log_synth, echo=T, cache= T, paged.print=TRUE, warning=F, fig.height=14,eval=T, fig.align='center', fig.cap= "Figure 13. Linear trends of Weekly Respiratory Hospitalizations by Years (Median and IQRs)"}
+```{r exp_plot_lines_log_synth, echo=T, cache= T, paged.print=TRUE, warning=F, fig.height=14,eval=T, fig.align='center', fig.cap= "Figure 13. Linear trends of Weekly Respiratory Hospitalizations by Years (Median and IQRs)"}
 ggplotly_series<-
   data15a64_rn2%>%
   # dplyr::group_by(year,yearweek)%>%
@@ -508,7 +508,7 @@ ggplotly(ggplotly_series)%>%
 
 <br>
   
-  ```{r exp_plot_lines_log_synth_std_diff, echo=T, cache= T, paged.print=TRUE, warning=F, fig.height=14,eval=T, fig.align='center', fig.cap= "Figure 14. Linear trends of Std. Differences of Variables, Between 2015-2018 vs. 2019, Before Week 43"}
+```{r exp_plot_lines_log_synth_std_diff, echo=T, cache= T, paged.print=TRUE, warning=F, fig.height=14,eval=T, fig.align='center', fig.cap= "Figure 14. Linear trends of Std. Differences of Variables, Between 2015-2018 vs. 2019, Before Week 43"}
 ggplotly_trends<-data15a64_rn2%>%
   dplyr::filter(isoweek<43) %>%
   #escalar los datos por todos l
@@ -564,7 +564,7 @@ ggplotly(ggplotly_trends) %>%
 
 <br>
   
-  ```{r synth1, echo=T, cache= T, paged.print=TRUE, warning=F,eval=T}
+```{r synth1, echo=T, cache= T, paged.print=TRUE, warning=F,eval=T}
 #https://uclspp.github.io/PUBL0050/seminar6.html
 library("Synth")
 data15a64_rn3<-data15a64_rn2 %>% 
@@ -616,7 +616,7 @@ gaps = dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth2.out$solution.w)
 
 <br>
   
-  ```{r synth2, echo=T, cache= T, paged.print=TRUE, warning=F,eval=T, fig.show="hide", fig.cap= "Figure 15. Coefficients of SCM"}
+```{r synth2, echo=T, cache= T, paged.print=TRUE, warning=F,eval=T, fig.show="hide", fig.cap= "Figure 15. Coefficients of SCM"}
 no_mostrar=1
 if(no_mostrar==0){
   path.plot(synth.res    = synth2.out,
@@ -636,7 +636,7 @@ gaps.plot(synth.res = synth2.out, dataprep.res = dataprep.out, Ylab = "Respirato
 
 <br>
   
-  ```{r synth3, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 16. Comparison of Linear Trends of Respiratory Hospitalizations in 2019 vs. Synthetic Counterfactual Based on 2015-2018"}
+```{r synth3, echo=T, cache= T, paged.print=TRUE, warning=F, eval=T, fig.align='center', fig.cap= "Figure 16. Comparison of Linear Trends of Respiratory Hospitalizations in 2019 vs. Synthetic Counterfactual Based on 2015-2018"}
 
 plot.df = data.frame(dataprep.out$Y0plot%*%synth2.out$solution.w)
 
@@ -659,7 +659,7 @@ ggplot(plot.df,aes(x=year,y=y,color=unit)) + geom_line() + ylab("") + xlab("Week
 
 <br>
   
-  ```{r synth4, echo=T, cache= T, paged.print=TRUE, warning=F,eval=T}
+```{r synth4, echo=T, cache= T, paged.print=TRUE, warning=F,eval=T}
 library(SCtools)
 #https://cran.r-project.org/web/packages/SCtools/SCtools.pdf
 

@@ -449,7 +449,8 @@ ggplot() + #median
   xlab("Mes") + 
   theme(strip.text.x = element_text(size = 15, face = "bold"),
         legend.position = c(.75,0.12),
-        plot.caption=element_text(hjust = 0))+
+        plot.caption=element_text(hjust = 0),
+        legend.key = element_rect(fill = NA))+
   stat_smooth(aes(y = rem_consulta_control, x = mes, color = 'red'), fill = 'red', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
   stat_smooth(aes(y = rem_consulta, x = mes, color = 'darkblue'), fill = 'darkblue', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
   stat_smooth(aes(y = rem_altas, x = mes, color = 'violet'), fill = 'violet', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
@@ -463,7 +464,8 @@ ggplot() + #median
                           guide = "legend")+
     scale_x_continuous(
   breaks = seq(from = 1, to = 12, by =3))+
-  guides(fill=guide_legend(ncol=2))
+  guides(color=guide_legend(ncol=2,
+  override.aes=list(fill=NA)))
 
 ```
 
@@ -474,40 +476,58 @@ Para hacer efectos mixtos, debería ver la cantidad de casos acumulados y el log
 ::: controlly
 ```{r 2a-exp-tray, echo=T, paged.print=TRUE,eval=T}
 cons_brechas_gine_a_imp%>%
+  #dplyr::filter(lev_ano_mes %in% 6:26) %>% 
   knitr::kable("markdown", caption="Muestra de los datos (imp A)")
 ```
 :::
 
+<br>
+
 ::: controlly
 ```{r 2b-exp-tray, echo=T, paged.print=TRUE,eval=T}
-cons_brechas_gine_a_imp%>%
+cons_brechas_gine_b_imp%>%
+  #dplyr::filter(lev_ano_mes %in% 6:26) %>% 
   knitr::kable("markdown", caption="Muestra de los datos (imp B)")
 ```
 :::
+
+<br>
+
+:::red
+Los datos de prueba se definieron desde `lev_ano_mes`, correspondiente a los meses **6 (Junio 2018) al 26 (Febrero 2020)**. Estos meses nos darán información de la estructura de la serie de tiempo que se utilizará en el análisis. La serie de tiempo que sirve de entrada para la exploración toma el **mes** como unidad de tiempo.
+:::
+
+
+`r warning(paste0("**Trabajaré con los datos imputados para el resto de los valores (jun 18 a feb 20)**"))`
 
 Primero vemos si existe una especie de rezago en las variables y correlación serial.
 
 <div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:500px; overflow-x: scroll; width:100%;">
 
-```{r 3a-exp-tray, echo=T, paged.print=TRUE,eval=T}
+```{r 3a-exp-tray, echo=T, paged.print=TRUE,eval=T, fig.retina=2, fig.height=20}
 #If p-value < 0.05 then no unit roots present
 #tseries::adf.test(pdata.frame(cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"))$rem_consulta , k=1)
 #vec_columnas
 
 invisible("Forma de ver autocorrelación")
-par(mfrow=c(2,2))
-by(cons_brechas_gine_a_imp$rem_consulta, cons_brechas_gine_a_imp$id, function(i) { acf(i, lag.max = 12) })
-by(cons_brechas_gine_a_imp$rem_consulta_nueva, cons_brechas_gine_a_imp$id, function(i) { acf(i, lag.max = 12) })
-by(cons_brechas_gine_a_imp$rem_consulta_control, cons_brechas_gine_a_imp$id, function(i) { acf(i, lag.max = 12) })
-by(cons_brechas_gine_a_imp$rem_pertinentes, cons_brechas_gine_a_imp$id, function(i) { acf(i, lag.max = 12) })
-by(cons_brechas_gine_a_imp$rem_nsp, cons_brechas_gine_a_imp$id, function(i) { acf(i, lag.max = 12) })
-by(cons_brechas_gine_a_imp$rem_altas, cons_brechas_gine_a_imp$id, function(i) { acf(i, lag.max = 12) })
-by(cons_brechas_gine_a_imp$entradas, cons_brechas_gine_a_imp$id, function(i) { acf(i, lag.max = 12) })
-by(cons_brechas_gine_a_imp$sum_le, cons_brechas_gine_a_imp$id, function(i) { acf(i, lag.max = 12) })
+par(mfrow=c(4,8))
+for (x in 1:length(vec_columnas)){
+  for (i in 1:length(unique(cons_brechas_gine_a_imp$id))){  
+    cat("\n\n")
+    cat("#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_")
+    cat(paste0("### TBATS para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
+    cat("\n\n")
+      print(acf(
+      ts(subset(cons_brechas_gine_a_imp,subset= id== unique(cons_brechas_gine_a_imp$id)[i] & lev_ano_mes %in% 6:26, select= vec_columnas[x])),lag.max = 12, main=paste0("ACF para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
+      )
+    }
+}
 
 #dev.off()
 ```
 </div>
+
+<br>
 
 <div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:600px; overflow-x: scroll; width:100%;">
 
@@ -515,15 +535,47 @@ by(cons_brechas_gine_a_imp$sum_le, cons_brechas_gine_a_imp$id, function(i) { acf
 #https://search.r-project.org/CRAN/refmans/collapse/html/psacf.html
 #vec_columnas
 
-collapse::psacf(data.frame(cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes")), rem_consulta + rem_consulta_nueva+ rem_consulta_control+ rem_pertinentes+ rem_nsp+ rem_altas + entradas+ sum_le  ~ cod_deis, ~lev_ano_mes) 
+collapse::psacf(data.frame(subset(cons_brechas_gine_a_imp, lev_ano_mes %in% 6:26), index = c("cod_deis","lev_ano_mes")), rem_consulta + rem_consulta_nueva+ rem_consulta_control+ rem_pertinentes+ rem_nsp+ rem_altas + entradas+ sum_le  ~ cod_deis, ~lev_ano_mes) 
 ```
 </div>
 
-```{r 5a-exp-tray, echo=T, paged.print=TRUE,eval=F}
+<br>
+
+```{r 4a-exp-tray, echo=T, paged.print=TRUE,eval=F}
 #https://rdrr.io/cran/panelAR/man/panelAR.html
 ```
 
-```{r 5b-exp-tray, echo=T, paged.print=TRUE,eval=F}
+<br>
+
+A continuación se muestra un análisis TBATS. Sus iniciales dan cuenta de T (regresores trigonométricos para múltiples temporalidades/estacionalidades), B (transformaciones box-cox que corrigen por el efecto de normalidad en los datos), A (la inclusión de errores autorregresivos y medias móviles), T(tendencia) y S (estacionalidad). Este modelo identifica automáticamente los parámetros que reducen la complejidad de los datos.
+
+<br>
+
+<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:500px; overflow-x: scroll; width:100%;">
+
+```{r 5a-exp-tray, echo=T, paged.print=TRUE,eval=T}
+#vec_columnas
+#https://fondecytacc.github.io/paperestallido/BD_Compilation.html#12_TBATS
+
+for (x in 1:length(vec_columnas)){
+  for (i in 1:length(unique(cons_brechas_gine_a_imp$id))){  
+    cat("\n\n")
+    cat("#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_")
+    cat(paste0("### TBATS para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
+    cat("\n\n")
+      print(tbats(
+      ts(subset(cons_brechas_gine_a_imp,subset= id== unique(cons_brechas_gine_a_imp$id)[i] & lev_ano_mes %in% 6:26, select= vec_columnas[x]))
+      ))
+    }
+}
+```
+
+</div>
+
+
+<br>
+
+```{r 6b-exp-tray, echo=T, paged.print=TRUE,eval=F}
 g <- plm(rem_consulta ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), model="random")
 
 pdwtest(g, alternative="two.sided")
