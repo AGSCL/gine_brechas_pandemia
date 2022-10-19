@@ -207,8 +207,9 @@ https://www.minsal.cl/subsecretario-de-redes-asistenciales-visito-operativo-de-l
 
 ```{r setup,include=T}
 if(!require(pacman)){install.packages("pacman")}
+if(!require(devtools)){install.packages("devtools", type = "win.binary", dependencies=T)}
 #pacman::p_unlock(lib.loc = pacman::p_path())
-pacman::p_load(devtools, car, tidyverse, janitor, imputeTS, sjPlot, zoo, compareGroups, forecast, lubridate, gganimate, data.table, CausalImpact, panelView, ggforce, tsModel, astsa, plm, gsynth, Synth, CausalMBSTS, parallel, doParallel, PanelMatch, kableExtra, Amelia, missRanger, pglm, install=F)
+pacman::p_load(devtools, car, tidyverse, janitor, imputeTS, sjPlot, zoo, compareGroups, forecast, lubridate, gganimate, data.table, CausalImpact, panelView, ggforce, tsModel, astsa, plm, gsynth, Synth, CausalMBSTS, parallel, doParallel, PanelMatch, kableExtra, Amelia, missRanger, pglm, tabulizer, install=F)
 # Calculate the number of cores
 no_cores <- detectCores() - 1
 cl<-makeCluster(no_cores)
@@ -237,6 +238,25 @@ destfile <- "_data/brechas_gine_le.tsv"
 curl::curl_download(le, destfile)
 brechas_gine_le <- readr::read_delim(destfile, delim = "\t", 
                       escape_double = FALSE, trim_ws = TRUE)
+
+
+REM2 <- "https://docs.google.com/spreadsheets/u/0/d/1J5AGAVBBTF0FblpBNitx7d3sv6Sx0GeL/export?format=tsv&id=1J5AGAVBBTF0FblpBNitx7d3sv6Sx0GeL&gid=1566988382"
+destfile <- "_data/brechas_gine_rem2.tsv"
+curl::curl_download(REM2, destfile)
+brechas_gine_REM2 <- readr::read_delim(destfile, delim = "\t", 
+                      escape_double = FALSE, trim_ws = TRUE)
+
+le2 <- "https://docs.google.com/spreadsheets/u/0/d/1B16EqrWer0So6w-SYoTiATlYnxwSOYBw/export?format=tsv&id=1B16EqrWer0So6w-SYoTiATlYnxwSOYBw&gid=960794881"
+destfile <- "_data/brechas_gine_le2.tsv"
+curl::curl_download(le2, destfile)
+brechas_gine_le2 <- readr::read_delim(destfile, delim = "\t", 
+                      escape_double = FALSE, trim_ws = TRUE)
+
+entradas2<- "https://docs.google.com/spreadsheets/u/0/d/1ckFkC8GHiKSTnvXvt6-nw2BnIGNrglQ8/export?format=tsv&id=1ckFkC8GHiKSTnvXvt6-nw2BnIGNrglQ8&gid=1432173314"
+destfile <- "_data/brechas_gine_entradas2.tsv"
+curl::curl_download(entradas2, destfile)
+brechas_gine_entradas2 <- readr::read_delim(destfile, delim = "\t", 
+                      escape_double = FALSE, trim_ws = TRUE)
 ```
 </div>
 
@@ -244,34 +264,150 @@ brechas_gine_le <- readr::read_delim(destfile, delim = "\t",
 
 # Consolidación de base de datos
 
-Considerando el diseño ecológico de este estudio, que utiliza y analiza información de bases de datos secundarias, no fue necesario obtener aprobación de comité de ética acreditado y por lo tanto, tampoco un proceso de consentimiento informado
+Considerando el diseño ecológico de este estudio, que utiliza y analiza información de bases de datos secundarias, no fue necesario obtener aprobación de comité de ética acreditado y por lo tanto, tampoco un proceso de consentimiento informado
 
 ## Paso 1. Limpiar las variables
 
-Primero normalizamos y restringimos los nombres de cada base de datos, luego restringimos el resto de las bases de datos de acuerdo a los años y meses disponibles en la base de datos `REM` (Enero 2018 a Junio 2022), agrupando la suma de prestaciones de origen en la institución de destino por tipo de prestación, año y mes. Finalmente, combinamos las bases de datos.
+Primero normalizamos y restringimos los nombres de cada base de datos, luego restringimos el resto de las bases de datos de acuerdo a los años y meses disponibles en la base de datos `REM` (Enero 2018 a Junio 2022), agrupando la suma de prestaciones de origen en la institución de destino por tipo de prestación, año y mes. Finalmente, combinamos las bases de datos. Más información sobre las especialidades y el formato se encuentra en https://redsalud.ssmso.cl/wp-content/uploads/2021/12/Protocolo-interoperabilidad-RCR_v1.4.2.pdf. 
 
-```{r 0-limp-var, echo=T, paged.print=TRUE,eval=T}
+::: controlly
+```{r 00-table, echo=T, paged.print=TRUE,eval=T}
+tabel <- extract_tables('https://redsalud.ssmso.cl/wp-content/uploads/2021/12/Protocolo-interoperabilidad-RCR_v1.4.2.pdf', pages = c(21,22))
+especialidades<-
+rbind.data.frame(tabel[[1]][-c(1:3),1:3],tabel[[2]][-c(1:3),1:3])
+
+colnames(especialidades)<-
+c(stringr::str_trim(stringr::str_c(tabel[[1]][1:3,1],sep=" ", collapse=" ")),
+  stringr::str_trim(stringr::str_c(tabel[[1]][1:3,2],sep=" ", collapse=" ")),
+  stringr::str_trim(stringr::str_c(tabel[[1]][1:3,3],sep=" ", collapse=" ")))
+
+especialidades%>%
+  knitr::kable("markdown", caption="Especialidades")
+```
+:::
+
+
+Decidimos seleccionar 15 especialidades transversales, es decir, que están en los cuatro hospitales y tienen mayor demanda: 
+
+- `07-053` y `07-067`: Traumatología y Ortopedia
+
+- `07-046` : Otorrinolaringologia
+
+- `07-044` : Oftalmología
+
+- `07-004` : Cirugía general
+
+- `07-012` : Dermatología
+
+- `07-058` : Ginecología 
+
+- `07-003` : Cardiología
+
+- `07-041` : Neurología adulto
+
+- `07-030` : Medicina interna
+
+- `07-054` : Urología
+
+- `07-018` : Gastroenterología adulto
+
+- `07-014` : Endocrinología adulto
+
+- `07-048` : Psiquiatría adulto
+
+- `07-037` : Nefrología adulto
+
+- `07-049` : Psiquiatría infanto-juvenil
+
+<br>
+
+### 1.0. REM
+
+```{r 00-1-limp-var, echo=T, paged.print=TRUE,eval=T}
+janitor::clean_names(brechas_gine_REM2) %>% 
+  dplyr::left_join(especialidades[,c(1,3)], by=c("cod_sigte"="Código SIGTE")) %>% 
+  data.table::as.data.table() %>% 
+  janitor::clean_names() %>% 
+  dplyr::filter(cod_sigte %in% c("07-067","07-053", "07-046", "07-044", "07-004", "07-012", "07-058", "07-003", "07-041", "07-030", "07-054", "07-018", "07-014", "07-048", "07-037", "07-049")) %>% 
+  dplyr::arrange(cod_sigte, ano, mes) %>% 
+  dplyr::mutate(fecha=as.Date(paste0(ano,"_",mes,"_01"),"%Y_%m_%d")) %>% 
+  #para cada establecimiento, prestación y año, genero valores con los distintos meses del año si no están
+  dplyr::group_by(cod_sigte,especialidad_norma_820, ano) %>% 
+  tidyr::complete(mes = seq(1, 12)) %>%
+  dplyr::ungroup() %>% 
+  dplyr::filter(ano>2017, ano<2021) %>% 
+  dplyr::group_by(cod_sigte,especialidad_norma_820) %>% 
+  dplyr::summarise(n_registros=n(), min_consultas_nva=min(consultas_nueva, na.rm=T), prom_consultas_nva=mean(consultas_nueva, na.rm=T), p25_consultas_nva=quantile(consultas_nueva, .25, na.rm=T), mdn_consultas_nva=quantile(consultas_nueva, .5, na.rm=T), p75_consultas_nva=quantile(consultas_nueva, .25, na.rm=T), max_consultas_nva=max(consultas_nueva, na.rm=T), 
+                   min_nsp_nva=min(nsp_nueva, na.rm=T), prom_nsp_nva=mean(nsp_nueva, na.rm=T), p25_nsp_nva=quantile(nsp_nueva, .25, na.rm=T), mdn_nsp_nva=quantile(nsp_nueva, .5, na.rm=T), p75_nsp_nva=quantile(nsp_nueva, .25, na.rm=T), max_nsp_nva=max(nsp_nueva, na.rm=T),
+        min_pert=min(pertinentes, na.rm=T), prom_pert=mean(pertinentes, na.rm=T), p25_pert=quantile(pertinentes, .25, na.rm=T), mdn_pert=quantile(pertinentes, .5, na.rm=T), p75_pert=quantile(pertinentes, .25, na.rm=T), max_pert=max(pertinentes, na.rm=T),
+                   sum_nas_fechas=sum(is.na(fecha)), min_fecha=min(fecha, na.rm=T), max_fecha=max(fecha, na.rm=T)) %>% 
+  knitr::kable("markdown", caption="Características de datos por prestación REM, en fechas entre 2018 y 2020") 
+  #knitr::kable("html", caption="Características de datos por prestación REM, en fechas entre 2018 y 2020") %>% 
+  #kableExtra::kable_classic()
+```
+
+### 1.1. Entradas
+
+```{r 0a-1-limp-var, echo=T, paged.print=TRUE,eval=T}
 #https://cran.r-project.org/web/packages/PanelMatch/vignettes/using_panelmatch.pdf
 #https://cran.r-project.org/web/packages/PanelMatch/vignettes/matched_set_objects.html
 #https://cran.r-project.org/web/packages/pampe/pampe.pdf}
 
-#table(brechas_gine_entradas $ESTAB_DEST, brechas_gine_entradas $ESTAB_DEST_NOMBRE)
-#07-058     GINECOLOGIA 
-#114101     HOSPITAL DR. SÓTERO DEL RÍO
-#114103     HOSPITAL PADRE HURTADO
-#200282     CRS PUENTE ALTO HOSPITAL PROVINCIA CORDILLERA
-#114105     HOSPITAL ELOISA DIAZ
 
 #seleccionamos los años y meses disponibles de la base original
 vector_ano_mes<-
-janitor::clean_names(brechas_gine_REM) %>% dplyr::mutate(ano_mes=paste0(ano,"_",sprintf("%.2d", mes))) %>% distinct(ano_mes)
+janitor::clean_names(brechas_gine_REM2) %>% dplyr::mutate(ano_mes=paste0(ano,"_",sprintf("%.2d", mes))) %>% distinct(ano_mes)
 
+
+janitor::clean_names(brechas_gine_entradas2)[,c("estab_dest", "presta_min", "ano", "mes", "n_entradas")] %>% 
+    dplyr::left_join(especialidades[,c(1,3)], by=c("presta_min"="Código SIGTE")) %>% 
+    data.table::as.data.table() %>% 
+    janitor::clean_names() %>%  
+    dplyr::filter(presta_min %in% c("07-067","07-053", "07-046", "07-044", "07-004", "07-012", "07-058", "07-003", "07-041", "07-030", "07-054", "07-018", "07-014", "07-048", "07-037", "07-049")) %>% 
+    dplyr::arrange(estab_dest, especialidad_norma_820, presta_min, ano, mes) %>% 
+    #para cada establecimiento, prestación y año, genero valores con los distintos meses del año si no están
+    dplyr::mutate(mes2=mes) %>% 
+    dplyr::group_by(estab_dest, especialidad_norma_820, presta_min, ano) %>% 
+    tidyr::complete(mes2 = seq(1, 12)) %>% 
+    dplyr::ungroup() %>%
+    dplyr::filter(is.na(mes), ano>2017, ano<2021) %>%
+    dplyr::group_by(estab_dest, especialidad_norma_820, presta_min) %>% 
+    summarise(n=n()) %>% 
+  dplyr::arrange(desc(n)) %>% 
+  knitr::kable("markdown", caption="Número de meses sin datos por Establecimiento y prestación, en fechas entre 2018 y 2020")
+```
+
+::: controlly
+```{r 0a-2-limp-var, echo=T, paged.print=TRUE,eval=T}
+janitor::clean_names(brechas_gine_entradas2)[,c("estab_dest", "presta_min", "ano", "mes", "n_entradas")] %>% 
+  dplyr::left_join(especialidades[,c(1,3)], by=c("presta_min"="Código SIGTE")) %>% 
+      data.table::as.data.table() %>% 
+      janitor::clean_names() %>%  
+      dplyr::filter(presta_min %in% c("07-067","07-053", "07-046", "07-044", "07-004", "07-012", "07-058", "07-003", "07-041", "07-030", "07-054", "07-018", "07-014", "07-048", "07-037", "07-049")) %>%   dplyr::arrange(estab_dest, presta_min, especialidad_norma_820, ano, mes) %>% 
+  dplyr::mutate(fecha=as.Date(paste0(ano,"_",mes,"_01"),"%Y_%m_%d")) %>% 
+  #para cada establecimiento, prestación y año, genero valores con los distintos meses del año si no están
+  dplyr::group_by(estab_dest, presta_min,especialidad_norma_820, ano) %>% 
+  tidyr::complete(mes = seq(1, 12)) %>%
+  dplyr::ungroup() %>% 
+  dplyr::filter(ano>2017, ano<2021) %>% 
+  dplyr::group_by(estab_dest, presta_min,especialidad_norma_820) %>% 
+  dplyr::summarise(n_registros=n(), min_entradas=min(n_entradas, na.rm=T), prom_entradas= mean(n_entradas, na.rm=T), p25_entradas=quantile(n_entradas, .25, na.rm=T), mdn_entradas=quantile(n_entradas, .5, na.rm=T), p75_entradas=quantile(n_entradas, .75, na.rm=T), max_entradas=max(n_entradas, na.rm=T), sum_nas_fechas=sum(is.na(fecha)), min_fecha=min(fecha, na.rm=T), max_fecha=max(fecha, na.rm=T)) %>% 
+  knitr::kable("markdown", caption="Características de datos por Establecimiento y prestación, en fechas entre 2018 y 2020")
+     # knitr::kable("html", caption="Características de datos por Establecimiento y prestación, en fechas entre 2018 y 2020") %>% 
+     # kableExtra::kable_classic()
+```
+:::
+
+
+```{r 0a-3-limp-var, echo=T, paged.print=TRUE,eval=T}
 #_#_#_#_#_#_#_#_
 #_#_#_#_#_#_#_#_ENTRADAS
 #_#_#_#_#_#_#_#_
 brechas_gine_entradas_mod<-
-janitor::clean_names(brechas_gine_entradas)[,c("estab_dest", "presta_min", "ano", "mes", "n_entradas")] %>% 
-  dplyr::arrange(estab_dest, presta_min, ano, mes) %>% 
+janitor::clean_names(brechas_gine_entradas2)[,c("estab_dest", "presta_min", "ano", "mes", "n_entradas")] %>% 
+      dplyr::filter(presta_min %in% c("07-067","07-053", "07-046", "07-044", "07-004", "07-012", "07-058", "07-003", "07-041", "07-030", "07-054", "07-018", "07-014", "07-048", "07-037", "07-049")) %>%   
+  dplyr::arrange(estab_dest, presta_min, ano, mes) %>%
+  dplyr::filter(ano>2017, ano<2021) %>% 
   #para cada establecimiento, prestación y año, genero valores con los distintos meses del año si no están
   dplyr::group_by(estab_dest, presta_min, ano) %>% 
   tidyr::complete(mes = seq(1, 12)) %>% 
@@ -281,19 +417,63 @@ janitor::clean_names(brechas_gine_entradas)[,c("estab_dest", "presta_min", "ano"
   dplyr::group_by(estab_dest, presta_min, ano_mes, ano, mes) %>% 
   dplyr::summarise(n_entradas_tot=sum(n_entradas, na.rm=T)) %>%
   #dplyr::filter(ano_mes=="2020_05") 
-
 #_#_#_#_#_#_#_#_
   dplyr::ungroup() %>% 
   #filtro para que coincida con la base de datos de REM
   dplyr::filter(ano_mes %in% unlist(vector_ano_mes))#%>% 
+```
+
+<br>
+
+### 1.2. LE
+
+::: controlly
+```{r 0a-4-limp-var, echo=T, paged.print=TRUE,eval=T}
+janitor::clean_names(brechas_gine_le2)[,c("estab_dest", "presta_min", "corte_sigte", "n_registros")] %>% 
+  dplyr::filter(presta_min %in% c("07-067","07-053", "07-046", "07-044", "07-004", "07-012", "07-058", "07-003", "07-041", "07-030", "07-054", "07-018", "07-014", "07-048", "07-037", "07-049")) %>% 
+  dplyr::left_join(especialidades[,c(1,3)], by=c("presta_min"="Código SIGTE")) %>% 
+    data.table::as.data.table() %>% 
+    janitor::clean_names() %>%  
+  dplyr::mutate(mes_14= month(corte_sigte), mes=mes_14, ano_13=year(corte_sigte)) %>% 
+  dplyr::arrange(estab_dest, presta_min, especialidad_norma_820, ano_13, mes_14) %>% 
+  #para cada establecimiento, prestación y año, genero valores con los distintos meses del año si no están
+  dplyr::group_by(estab_dest, presta_min, especialidad_norma_820, ano_13) %>% 
+  tidyr::complete(mes_14 = seq(1, 12)) %>%
+  dplyr::ungroup() %>% 
+  dplyr::filter(ano_13>2017, ano_13<2021) %>% 
+  dplyr::group_by(estab_dest, presta_min, especialidad_norma_820) %>% 
+  dplyr::summarise(n_registros= n(), min_n_registros= min(n_registros, na.rm=T), max_n_registros= max(n_registros, na.rm=T), sum_nas_fechas= sum(is.na(corte_sigte)), min_fecha= min(corte_sigte, na.rm=T), max_fecha= max(corte_sigte, na.rm=T)) %>% 
+  knitr::kable("markdown", caption="Características de datos por Establecimiento y prestación, en fechas entre 2018 y 2020")
+```
+:::
+
+```{r 0b-limp-var, echo=T, paged.print=TRUE,eval=T}
 #_#_#_#_#_#_#_#_LE
+# 1 PUENTE ALTO      
+# 2 SAN RAMON        
+# 3 LA FLORIDA       
+# 4 LA GRANJA        
+# 5 LA PINTANA       
+# 6 SAN JOSE DE MAIPO
+# 7 PROVIDENCIA      
+# 8 PIRQUE 
 #_#_#_#_#_#_#_#_
 brechas_gine_le_mod<-
-janitor::clean_names(brechas_gine_le)[,c("estab_dest", "presta_min", "ano_13", "mes_14", "n_registros")] %>% 
+janitor::clean_names(brechas_gine_le2)[,c("estab_orig_comuna","estab_dest", "presta_min", "corte_sigte", "n_registros")] %>% 
+  dplyr::filter(presta_min %in% c("07-067","07-053", "07-046", "07-044", "07-004", "07-012", "07-058", "07-003", "07-041", "07-030", "07-054", "07-018", "07-014", "07-048", "07-037", "07-049")) %>%   
+  dplyr::mutate(mes_14= month(corte_sigte), mes2=mes_14, ano_13=year(corte_sigte)) %>% 
   dplyr::arrange(estab_dest, presta_min, ano_13, mes_14) %>% 
   #seleccionamos la primera fila para cada uno
   dplyr::group_by(estab_dest, presta_min, ano_13, mes_14) %>% 
-  dplyr::summarise(sum_le=sum(n_registros, na.rm=T)) %>% 
+  dplyr::summarise(sum_le=sum(n_registros, na.rm=T), 
+                   pa=sum(sum_le[estab_orig_comuna=="PUENTE ALTO"],na.rm=T)/sum_le, 
+                   sr=sum(sum_le[estab_orig_comuna=="SAN RAMON"],na.rm=T)/sum_le, 
+                   lf=sum(sum_le[estab_orig_comuna=="LA FLORIDA"],na.rm=T)/sum_le, 
+                   lg=sum(sum_le[estab_orig_comuna=="LA GRANJA"],na.rm=T)/sum_le, 
+                   lp=sum(sum_le[estab_orig_comuna=="LA PINTANA"],na.rm=T)/sum_le, 
+                   sjm=sum(sum_le[estab_orig_comuna=="SAN JOSE DE MAIPO"],na.rm=T)/sum_le, 
+                   prov=sum(sum_le[estab_orig_comuna=="PROVIDENCIA"],na.rm=T)/sum_le, 
+                   pir= sum(sum_le[estab_orig_comuna=="PIRQUE"],na.rm=T)/sum_le) %>% 
   dplyr::ungroup() %>% 
   #para cada establecimiento, prestación y año, genero valores con los distintos meses del año si no están
   #dplyr::group_by(estab_dest, presta_min, ano_13) %>% 
@@ -303,6 +483,14 @@ janitor::clean_names(brechas_gine_le)[,c("estab_dest", "presta_min", "ano_13", "
   dplyr::ungroup() %>% 
   #filtro para que coincida con la base de datos de REM
   dplyr::filter(ano_mes %in% unlist(vector_ano_mes))
+```
+
+
+<br>
+
+### 1.3. Combinación
+
+```{r 0c-1-limp-var, echo=T, paged.print=TRUE,eval=T}
 
 #LEM= lista espera mensual
 #LET = lista espera trimestral
@@ -313,155 +501,94 @@ janitor::clean_names(brechas_gine_le)[,c("estab_dest", "presta_min", "ano_13", "
 # COMBINACION DE BASES
 #_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
 
-cons_brechas_gine<-
-brechas_gine_REM %>% 
+cons_brechas_gine_pre<-
+janitor::clean_names(brechas_gine_REM2) %>% 
+  dplyr::left_join(especialidades[,c(1,3)], by=c("cod_sigte"="Código SIGTE")) %>% 
+  data.table::as.data.table() %>% 
   janitor::clean_names() %>% 
-  dplyr::select(cod_deis, ano, mes, trimestre, cod_sigte, rem_consulta, rem_consulta_nueva, rem_consulta_control, rem_pertinentes, rem_nsp, rem_altas) %>% 
+  dplyr::filter(cod_sigte %in% c("07-067","07-053", "07-046", "07-044", "07-004", "07-012", "07-058", "07-003", "07-041", "07-030", "07-054", "07-018", "07-014", "07-048", "07-037", "07-049")) %>% 
+  dplyr::arrange(cod_sigte, ano, mes) %>% 
+  dplyr::mutate(fecha=as.Date(paste0(ano,"_",mes,"_01"),"%Y_%m_%d")) %>% 
+  #para cada establecimiento, prestación y año, genero valores con los distintos meses del año si no están
+  dplyr::group_by(cod_sigte,especialidad_norma_820, ano) %>% 
+  tidyr::complete(mes = seq(1, 12)) %>%
+  dplyr::ungroup() %>% 
+  dplyr::filter(ano>2017, ano<2021) %>% 
+  janitor::clean_names() %>% 
+  dplyr::select(cod_deis, ano, mes, cod_sigte, especialidad_norma_820, consultas, consultas_nueva, consultas_control, pertinentes, nsp, nsp_nueva, altas) %>% 
     dplyr::arrange(cod_deis, ano, mes, cod_sigte) %>%
   dplyr::left_join(brechas_gine_entradas_mod[,setdiff(names(brechas_gine_entradas_mod),"ano_mes")], by=c("cod_deis"="estab_dest", "cod_sigte"="presta_min", "ano"="ano", "mes"="mes"))%>%
   dplyr::left_join(brechas_gine_le_mod[,setdiff(names(brechas_gine_le_mod),"ano_mes")], by=c("cod_deis"="estab_dest", "cod_sigte"="presta_min", "ano"="ano_13", "mes"="mes_14")) %>% 
-  dplyr::mutate(across(c("rem_consulta_nueva", "rem_pertinentes", "rem_nsp", "rem_altas", "n_entradas_tot"),~ifelse(.==0, NA,.))) %>% 
   dplyr::rename("entradas"="n_entradas_tot")%>% 
-  dplyr::mutate(razon_do=rem_consulta_nueva/entradas) %>% 
+  dplyr::mutate(razon_do=consultas_nueva/entradas) %>% 
   #
   dplyr::mutate(fecha=as.Date(paste0(ano,"_",mes,"_01"),"%Y_%m_%d")) %>% 
-  dplyr::mutate(trat=dplyr::case_when(ano==2020 & mes>= 4~1,T~ 0))
+  dplyr::mutate(trat_t=dplyr::case_when(ano==2020 & mes>= 4~1,T~ 0))
+
+
 cons_brechas_gine<-
-dplyr::mutate(cons_brechas_gine,lev_ano_mes= as.numeric(factor(paste0(ano,"_",sprintf("%.2d", mes)),levels=vector_ano_mes$ano_mes))) %>% 
-  dplyr::mutate(id=paste0(cod_deis,"_",cod_sigte))
+dplyr::mutate(cons_brechas_gine_pre,lev_ano_mes= as.numeric(factor(paste0(ano,"_",sprintf("%.2d", mes)),levels=vector_ano_mes$ano_mes))) %>% 
+  dplyr::mutate(id=paste0(cod_deis,"_",cod_sigte))%>% 
+   dplyr::mutate(trat_id=dplyr::case_when(cod_sigte=="07-058"~1,T~ 0))
 ```
+
+:::red
+**Pendiente**
+
+- Aclarar con qué indicador nos quedaremos.
+
+- Ver cómo codificar LE o Entradas (una de ellas me acuerdo que se agrupaban distinto por año y mes), una es complicada porque sólo tiene info para algunos meses, ¿lo separo por trimestre?
+
+:::
 
 A `200282 CRS PUENTE ALTO HOSPITAL PROVINCIA CORDILLERA` no tenía ninguna información para mayo del 2020. La base de LE's está bastante más incompleta en ese sentido. Además tiene meses 0 (ej., 2020- 0). Todavía no sé que es LEM. Aquellas columnas `rem_` en algunos casos tienen valores 0, pero posiblemente son datos perdidos. Con todo, se consolidó una base de datos llamada `cons_brechas_gine`.
 
-```{r 0-2-limp-var, echo=T, paged.print=TRUE,eval=T, fig.show='hide'}
+```{r 0-3-limp-var, echo=T, paged.print=TRUE,eval=T, fig.show='hide'}
 pv_data<-
-panelView::panelview(entradas ~trat, data=cons_brechas_gine, index = c("cod_deis","fecha"))
+panelView::panelview(entradas ~trat_t*trat_id, data=cons_brechas_gine, index = c("id","fecha"))
 ```
-```{r 0-3-limp-var, echo=T, paged.print=TRUE,eval=T, fig.width=10}
+```{r 0-4-limp-var, echo=T, paged.print=TRUE,eval=T, fig.width=10, fig.height=10}
 pv_data+
   sjPlot::theme_sjplot2()+
     theme(axis.text.x = element_text(vjust = 0.5,hjust = 0.5,angle = 60),
           legend.position="bottom",
           plot.caption=element_text(hjust=0))+
-    scale_y_continuous(breaks=seq(0,1000,50))+
+    #scale_y_continuous(breaks=seq(0,1000,50))+
   ggtitle("Vista de datos de panel")+
-  ylab("Hospital (código DEIS)")
+  ylab("Combinación (Hospital código DEIS, especialidad)")
 ```
 
 Posteriormente, para reemplazar datos perdidos, se utilizó un modelo de imputación de series de tiempo por cada institución y código de prestación basado en suavizamiento (*smoothing*) Kalman correspondiente a modelos de series de tiempo estructurales. Se consolidaron los datos en una base de datos con nombre `cons_brechas_gine_imp`.
 
+<br>
 
-```{r 1a-limp-var, echo=T, paged.print=TRUE,eval=T}
-bd_forloop<- expand.grid(cod_deis=unique(cons_brechas_gine$cod_deis), cod_sigte=unique(cons_brechas_gine$cod_sigte))
-
-vec_columnas<-
-c("rem_consulta", "rem_consulta_nueva", "rem_consulta_control", "rem_pertinentes", "rem_nsp", "rem_altas", "entradas", "sum_le")
-
-df<-data.frame()
-for (x in 1:length(vec_columnas)){
-  i<-vec_columnas[x]
-  for (val in 1:nrow(bd_forloop)){
-    j1<- bd_forloop[val,"cod_deis"]
-    j2<- bd_forloop[val,"cod_sigte"]
-    paste0("Casos de cod= ",j1," cod_sigte= ",j2," para columna ",i)
-    set.seed(2125)
-    imp<-imputeTS::na_kalman(subset(cons_brechas_gine, cod_deis==j1 & cod_sigte==j2, i))[[1]]
-    ano_mes<-subset(cons_brechas_gine, cod_deis==j1 & cod_sigte==j2, c("ano","mes"))
-    df<-
-    bind_rows(df,cbind.data.frame(
-                     cod_deis= rep(j1,length(imp)), cod_sigte= rep(j2,length(imp)), value=rep(i,length(imp)),
-                     ano=ano_mes[,1],
-                     mes=ano_mes[,2],
-                     imp=as.numeric(imp)))
-  }
-}
-invisible("Opción A, imputación con KALMAN para cada serie")
-cons_brechas_gine_a_imp<-
-tidyr::pivot_wider(df,names_from ="value", values_from=imp)%>% 
-  dplyr::mutate(fecha=as.Date(paste0(ano,"_",mes,"_01"),"%Y_%m_%d")) %>% 
-  dplyr::mutate(trat=dplyr::case_when(ano==2020 & mes>= 4~1,T~ 0))%>% 
-  dplyr::mutate(razon_do=rem_consulta_nueva/entradas) %>% 
-  dplyr::mutate(lev_ano_mes= as.numeric(factor(paste0(ano,"_",sprintf("%.2d", mes)),levels=vector_ano_mes$ano_mes)))%>% 
-  dplyr::mutate(id=paste0(cod_deis,"_",cod_sigte))
-
-cons_brechas_gine_imp_a_wide<-
-  cons_brechas_gine_a_imp %>% 
-  dplyr::mutate(trat=dplyr::case_when(mes>= 4~1,T~ 0))%>% 
-  data.frame() %>% 
-tidyr::pivot_wider(id_cols=c(cod_deis, cod_sigte, trat, mes),names_from ="ano", values_from=c(vec_columnas, "razon_do"))
-```
-
-
-```{r 1b-limp-var, echo=T, paged.print=TRUE,eval=T}
-
-invisible("Opción B, imputación con forest trees: missranger")
-
-set.seed(2125)
-cons_brechas_gine_b_imp <- missRanger::missRanger(dplyr::mutate(dplyr::select(cons_brechas_gine,id,lev_ano_mes,rem_consulta, rem_consulta_nueva, rem_consulta_control, rem_pertinentes, rem_nsp, rem_altas, entradas, sum_le),rn=row_number()), . ~ . - id -rn, pmm.k = 6, num.trees = 500)
-
-cons_brechas_gine_b_imp <-
-  cons_brechas_gine_b_imp %>% 
-    tidyr::separate(id,c("cod_deis", "cod_sigte"),sep="_") %>% 
-    dplyr::mutate(razon_do=rem_consulta_nueva/entradas) %>% 
-    dplyr::left_join(cbind(rn=1:length(vector_ano_mes$ano_mes),vector_ano_mes), by=c("lev_ano_mes"="rn")) %>% 
-  dplyr::mutate(id=paste0(cod_deis,"_",cod_sigte))%>% 
-  data.frame() %>%
-  tidyr::separate(ano_mes, c("ano","mes"),sep="_") %>% 
-  dplyr::mutate(mes=as.numeric(mes))  %>% 
-  dplyr::mutate(trat=dplyr::case_when(ano==2020 & mes>= 4~1,T~ 0))%>% 
-  dplyr::mutate(fecha=as.Date(paste0(ano,"_",mes,"_01"),"%Y_%m_%d")) %>% 
-  dplyr::mutate(lev_ano_mes= as.numeric(factor(paste0(ano,"_",sprintf("%.2d", mes)),levels=vector_ano_mes$ano_mes)))
-  
-cons_brechas_gine_imp_b_wide<-
-  cons_brechas_gine_b_imp %>% 
-  dplyr::mutate(trat=dplyr::case_when(mes>= 4~1,T~ 0))%>% 
-tidyr::pivot_wider(id_cols=c(cod_deis, cod_sigte, trat, mes),names_from ="ano", values_from=c(vec_columnas, "razon_do"))
-```
-
-```{r 1c-limp-var, echo=T, paged.print=TRUE,eval=F}
-#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
-#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
-#https://fondecytacc.github.io/SUD_health_Chile.github.io/Matching_Process1_APR_22#Imputation
-set.seed(2125)
-amelia_fit <- amelia(dplyr::mutate(dplyr::select(cons_brechas_gine,id,lev_ano_mes,rem_consulta, rem_consulta_nueva, rem_pertinentes, rem_nsp, rem_altas, entradas, sum_le),rn=row_number()) %>% data.frame(), 
-                      m=50, 
-                      parallel = "multicore", #noms = "row",
-                      idvars="rn",#"hash_key","rn"
-                      #noms= c("cod_deis"),
-                      #ords= c("trimestre"),
-                      cs = "id",
-                      ts = "lev_ano_mes",
-                      incheck = TRUE)
-#no es muy bueno
-compare.density(amelia_fit,var="sum_le")
-```
-
-Se añaden 0's y 1's para indicar cuando son tratamientos de cuando no.
-
-```{r 1-2-limp-var, echo=T, paged.print=TRUE,eval=T, warning=F}
+```{r 1-2-limp-var, echo=T, paged.print=TRUE,eval=T, warning=F, dpi=720, fig.height=15, fig.width=15, fig.cap= "Conjunto de Medidas por año y Código"}
 #https://choonghyunryu.github.io/dlookr/reference/get_transform.html
-#vec_columnas
-cons_brechas_gine_a_imp%>%
+vec_columnas<-
+c("consultas", "consultas_nueva", "consultas_control", "pertinentes", "nsp", "nsp_nueva", "altas", "entradas", "sum_le")
+
+
+cons_brechas_gine%>%
 ggplot() + #median
-  facet_wrap(~ano, ncol = 2) + 
+  facet_wrap(ano~cod_sigte) + 
   theme_bw() + 
-  ylab("Consulta nueva") + 
+  ylab("Especialidad/Año") + 
   xlab("Mes") + 
-  theme(strip.text.x = element_text(size = 15, face = "bold"),
-        legend.position = c(.75,0.12),
+  theme(strip.text.x = element_text(size = 8, face = "bold"),
+        legend.position = c(.95,0.02),
         plot.caption=element_text(hjust = 0),
         legend.key = element_rect(fill = NA))+
-  stat_smooth(aes(y = rem_consulta_control, x = mes, color = 'red'), fill = 'red', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
-  stat_smooth(aes(y = rem_consulta, x = mes, color = 'darkblue'), fill = 'darkblue', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
-  stat_smooth(aes(y = rem_altas, x = mes, color = 'violet'), fill = 'violet', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = consultas_control, x = mes, color = 'red'), fill = 'red', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+    stat_smooth(aes(y = consultas, x = mes, color = 'darkblue'), fill = 'darkblue', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = consultas_nueva, x = mes, color = 'cyan'), fill = 'darkblue', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = altas, x = mes, color = 'violet'), fill = 'violet', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
   stat_smooth(aes(y = entradas, x = mes, color = 'brown'), fill = 'brown', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
-  stat_smooth(aes(y = rem_nsp, x = mes, color = 'gray70'), fill = 'gray80', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = nsp, x = mes, color = 'gray70'), fill = 'gray80', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
   stat_smooth(aes(y = sum_le, x = mes, color = 'darkgreen'), fill = 'darkgreen', alpha = 0.2, fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
-  stat_smooth(aes(y = rem_pertinentes, x = mes, color = 'yellow'), fill = 'yellow', alpha = 0.2, fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
-  scale_color_identity(name = "Modelo",
-                          breaks = c("red", "darkblue", "violet","brown","gray70","darkgreen","yellow"),
-                          labels = c("Consulta\ncontrol", "Consulta", "Altas","Entradas", "NSP","LE", "Pertinentes"),
-                          guide = "legend")+
+  stat_smooth(aes(y = pertinentes, x = mes, color = 'yellow'), fill = 'yellow', alpha = 0.2, fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  scale_color_identity(name = "Medidas",
+                          breaks = c("darkblue","red", "cyan", "violet","brown","gray70","darkgreen","yellow"),
+                          labels = c("Control", "Consulta", "C_Nueva", "Altas","Entradas", "NSP","LE", "Pertinentes"), guide = "legend")+
     scale_x_continuous(
   breaks = seq(from = 1, to = 12, by =3))+
   guides(color=guide_legend(ncol=2,
@@ -469,189 +596,40 @@ ggplot() + #median
 
 ```
 
-## Paso 2. Explorar trayectorias
 
-Para hacer efectos mixtos, debería ver la cantidad de casos acumulados y el log de eso, asumiendo exponencialidad por recuento de casos. También explorar si hay algún efecto de autocorrelación.
-
-::: controlly
-```{r 2a-exp-tray, echo=T, paged.print=TRUE,eval=T}
-cons_brechas_gine_a_imp%>%
-  #dplyr::filter(lev_ano_mes %in% 6:26) %>% 
-  knitr::kable("markdown", caption="Muestra de los datos (imp A)")
-```
-:::
-
-<br>
-
-::: controlly
-```{r 2b-exp-tray, echo=T, paged.print=TRUE,eval=T}
-cons_brechas_gine_b_imp%>%
-  #dplyr::filter(lev_ano_mes %in% 6:26) %>% 
-  knitr::kable("markdown", caption="Muestra de los datos (imp B)")
-```
-:::
-
-<br>
-
-:::red
-Los datos de prueba se definieron desde `lev_ano_mes`, correspondiente a los meses **6 (Junio 2018) al 26 (Febrero 2020)**. Estos meses nos darán información de la estructura de la serie de tiempo que se utilizará en el análisis. La serie de tiempo que sirve de entrada para la exploración toma el **mes** como unidad de tiempo.
-:::
+```{r 1-2b-limp-var, echo=T, paged.print=TRUE,eval=T, warning=F, dpi=720, fig.height=15, fig.width=15, fig.cap= "Conjunto de Medidas por año y Hospital"}
+#https://choonghyunryu.github.io/dlookr/reference/get_transform.html
+vec_columnas<-
+c("consultas", "consultas_nueva", "consultas_control", "pertinentes", "nsp", "nsp_nueva", "altas", "entradas", "sum_le")
 
 
-`r warning(paste0("**Trabajaré con los datos imputados para el resto de los valores (jun 18 a feb 20)**"))`
-
-Primero vemos si existe una especie de rezago en las variables y correlación serial.
-
-<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:500px; overflow-x: scroll; width:100%;">
-
-```{r 3a-exp-tray, echo=T, paged.print=TRUE,eval=T, fig.retina=2, fig.height=20}
-#If p-value < 0.05 then no unit roots present
-#tseries::adf.test(pdata.frame(cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"))$rem_consulta , k=1)
-#vec_columnas
-
-invisible("Forma de ver autocorrelación")
-par(mfrow=c(4,8))
-for (x in 1:length(vec_columnas)){
-  for (i in 1:length(unique(cons_brechas_gine_a_imp$id))){  
-    cat("\n\n")
-    cat("#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_")
-    cat(paste0("### TBATS para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
-    cat("\n\n")
-      print(acf(
-      ts(subset(cons_brechas_gine_a_imp,subset= id== unique(cons_brechas_gine_a_imp$id)[i] & lev_ano_mes %in% 6:26, select= vec_columnas[x])),lag.max = 12, main=paste0("ACF para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
-      )
-    }
-}
-
-#dev.off()
-```
-</div>
-
-<br>
-
-<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:600px; overflow-x: scroll; width:100%;">
-
-```{r 3b-exp-tray, echo=T, paged.print=TRUE,eval=T}
-#https://search.r-project.org/CRAN/refmans/collapse/html/psacf.html
-#vec_columnas
-
-collapse::psacf(data.frame(subset(cons_brechas_gine_a_imp, lev_ano_mes %in% 6:26), index = c("cod_deis","lev_ano_mes")), rem_consulta + rem_consulta_nueva+ rem_consulta_control+ rem_pertinentes+ rem_nsp+ rem_altas + entradas+ sum_le  ~ cod_deis, ~lev_ano_mes) 
-```
-</div>
-
-<br>
-
-```{r 4a-exp-tray, echo=T, paged.print=TRUE,eval=F}
-#https://rdrr.io/cran/panelAR/man/panelAR.html
-```
-
-<br>
-
-A continuación se muestra un análisis TBATS. Sus iniciales dan cuenta de T (regresores trigonométricos para múltiples temporalidades/estacionalidades), B (transformaciones box-cox que corrigen por el efecto de normalidad en los datos), A (la inclusión de errores autorregresivos y medias móviles), T(tendencia) y S (estacionalidad). Este modelo identifica automáticamente los parámetros que reducen la complejidad de los datos.
-
-<br>
-
-<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:500px; overflow-x: scroll; width:100%;">
-
-```{r 5a-exp-tray, echo=T, paged.print=TRUE,eval=T}
-#vec_columnas
-#https://fondecytacc.github.io/paperestallido/BD_Compilation.html#12_TBATS
-
-for (x in 1:length(vec_columnas)){
-  for (i in 1:length(unique(cons_brechas_gine_a_imp$id))){  
-    cat("\n\n")
-    cat("#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_")
-    cat(paste0("### TBATS para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
-    cat("\n\n")
-      print(tbats(
-      ts(subset(cons_brechas_gine_a_imp,subset= id== unique(cons_brechas_gine_a_imp$id)[i] & lev_ano_mes %in% 6:26, select= vec_columnas[x]))
-      ))
-    }
-}
-```
-
-</div>
-
-
-<br>
-
-```{r 6b-exp-tray, echo=T, paged.print=TRUE,eval=F}
-g <- plm(rem_consulta ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), model="random")
-
-pdwtest(g, alternative="two.sided")
-#https://rdrr.io/rforge/plm/man/pbgtest.html
-pbgtest(g, order = 14) #es necesario analizar dónde se ubica el rezago
-#https://rdrr.io/rforge/plm/man/pbltest.html
-pbltest(g)
-
-pbsytest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), test = "re", re.normal = F)
-pbsytest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), test = "re", re.normal = T)
-pbsytest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), test = "j")
-pbsytest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), test = "ar")
-
-#https://rdrr.io/rforge/plm/man/pwartest.html
-pwartest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"))
-#First–differencing–based test of serial correlation for (the idiosyncratic component of) the errors in either levels or first–differenced panel models.
-#NO SÉ SI SIRVE
-pwfdtest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"))
-#https://rdrr.io/rforge/plm/man/pbnftest.html
-pbnftest(g)
-pbnftest(g, test = "lbi")
-
-#https://cran.r-project.org/web/packages/plm/vignettes/A_plmPackage.html
-
-#https://www.princeton.edu/~otorres/Panel101R.pdf
-#HETEROSCKEDACITY
-# The --vcovHC– function estimates three heteroskedasticity-consistent covariance
-# estimators:
-# • "white1" - for general heteroskedasticity but no serial correlation. Recommended for
-# random effects.
-# • "white2" - is "white1" restricted to a common variance within groups. Recommended
-# for random effects.
-# • "arellano" - both heteroskedasticity and serial correlation. Recommended for fixed
-# effects.
-# The following options apply*:
-# • HC0 - heteroskedasticity consistent. The default.
-# • HC1,HC2, HC3 – Recommended for small samples. HC3 gives less weight to influential
-# observations.
-# • HC4 - small samples with influential observations
-# • HAC - heteroskedasticity and autocorrelation consistent (type ?vcovHAC for more
-# details)
-t(sapply(c("HC0", "HC1", "HC2", "HC3", "HC4"), function(x) sqrt(diag(vcovHC(g, type = x)))))
-
-#COLINEALIDAD
-car::vif(plm(rem_consulta ~ rem_altas+ razon_do, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), model="random"))
-
-anb <- pglm(union ~ wage + exper + rural, UnionWage, family ='negbin',
-model = "pooling", method = "bfgs", print.level = 3, R = 5)
+cons_brechas_gine%>%
+ggplot() + #median
+  facet_wrap(ano~cod_deis) + 
+  theme_bw() + 
+  ylab("Hospital/Año") + 
+  xlab("Mes") + 
+  theme(strip.text.x = element_text(size = 8, face = "bold"),
+        legend.position = c(.7,0.03),
+        plot.caption=element_text(hjust = 0),
+        legend.key = element_rect(fill = NA))+
+  stat_smooth(aes(y = consultas_control, x = mes, color = 'red'), fill = 'red', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+    stat_smooth(aes(y = consultas, x = mes, color = 'darkblue'), fill = 'darkblue', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = consultas_nueva, x = mes, color = 'cyan'), fill = 'darkblue', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = altas, x = mes, color = 'violet'), fill = 'violet', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = entradas, x = mes, color = 'brown'), fill = 'brown', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = nsp, x = mes, color = 'gray70'), fill = 'gray80', alpha = 0.2,fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = sum_le, x = mes, color = 'darkgreen'), fill = 'darkgreen', alpha = 0.2, fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  stat_smooth(aes(y = pertinentes, x = mes, color = 'yellow'), fill = 'yellow', alpha = 0.2, fun.data = median_hilow, fun.args = list(conf.int = 0.5))+
+  scale_color_identity(name = "Medidas",
+                          breaks = c("darkblue","red", "cyan", "violet","brown","gray70","darkgreen","yellow"),
+                          labels = c("Control", "Consulta", "C_Nueva", "Altas","Entradas", "NSP","LE", "Pertinentes"), guide = "legend")+
+    scale_x_continuous(
+  breaks = seq(from = 1, to = 12, by =3))+
+  guides(color=guide_legend(ncol=4,
+  override.aes=list(fill=NA)))
 
 ```
-
-
----
-
-```{r 2-analysis, echo=T, paged.print=TRUE,eval=F}
-#https://blog.devgenius.io/causal-inference-on-time-series-covid-19-data-3cbba9ec35f3
-#https://github.com/klarsen1/MarketMatching
-#https://web.pdx.edu/~crkl/WISE2017/TSAR-1.pdf
-#https://fondecytacc.github.io/paperestallido/Causal_Impact2_cons_trauma.html
-#https://fondecytacc.github.io/paperestallido/BD_Compilation.html
-#https://mran.microsoft.com/snapshot/2018-07-03/web/packages/plm/vignettes/plm.pdf
-causal.2 <- CausalMBSTS(y, components = c("trend", "cycle"), cycle.period = 75,
-                        dates = dates, int.date = int.date, s0.r = 0.01*diag(2),
-                        s0.eps = 0.1*diag(2), niter = 100, burn = 10)
-```
-
-```{r 2-feriados, echo=T, paged.print=TRUE,eval=F}
-
-feriados<- readr::read_csv("https://docs.google.com/spreadsheets/d/1Kd8SLHFLohGKCuJHa3cxbhkTH9691BCd_1ryCKUM_UA/export?format=csv&id=1Kd8SLHFLohGKCuJHa3cxbhkTH9691BCd_1ryCKUM_UA&gid=208597553",skip=2)%>%
-    dplyr::mutate(`Día`=gsub(" de ", " ", `Día`))
-#agrego el día viernes
-feriados<-feriados%>% rbind(feriados[6,])%>%
-    dplyr::mutate(`Día`=case_when(row_number()==19~"Viernes, 22 Mayo",TRUE~as.character(`Día`)))%>%
-    dplyr::mutate(date_format=lubridate::parse_date_time(`Día`, '%A, %d %B'))
-```
-
 
 <br>
 

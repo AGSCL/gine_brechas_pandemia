@@ -1,0 +1,528 @@
+---
+title: "Paso 1"
+date: "`r withr::with_locale(new = c('LC_TIME' = 'C'), code =format(Sys.time(),'%B %d, %Y'))`"
+output:
+  distill::distill_article:
+    code_folding: true
+    fig_height: 6
+    fig_width: 8
+    theme: spacelab
+    toc: yes
+    toc_depth: 5
+    toc_float: yes
+    output_dir: "docs"
+  toc_float:
+    collapsed: false
+    smooth_scroll: true
+bibliography: _bib/libreria_generica.bib
+nocite: '@*'
+---
+
+<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:350px; overflow-x: scroll; width:100%">
+```{css zoom-lib-src, echo = FALSE}
+script src = "https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"
+```
+
+```{js zoom-jquery, echo = FALSE}
+ $(document).ready(function() {
+    $('body').prepend('<div class=\"zoomDiv\"><img src=\"\" class=\"zoomImg\"></div>');
+    // onClick function for all plots (img's)
+    $('img:not(.zoomImg)').click(function() {
+      $('.zoomImg').attr('src', $(this).attr('src')).css({width: '100%'});
+      $('.zoomDiv').css({opacity: '1', width: 'auto', border: '1px solid white', borderRadius: '5px', position: 'fixed', top: '50%', left: '50%', marginRight: '-50%', transform: 'translate(-50%, -50%)', boxShadow: '0px 0px 50px #888888', zIndex: '50', overflow: 'auto', maxHeight: '100%'});
+    });
+    // onClick function for zoomImg
+    $('img.zoomImg').click(function() {
+      $('.zoomDiv').css({opacity: '0', width: '0%'}); 
+    });
+  });
+  
+```
+
+```{css hideOutput-lib-src, echo = FALSE}
+<script src="hideOutput.js"></script> 
+```
+
+```{js hideOutput, echo = FALSE}
+$(document).ready(function() {    
+	$chunks = $('.fold');    
+	$chunks.each(function () {      // add button to source code chunks     
+	if ( $(this).hasClass('s') ) {       
+		$('pre.r', this).prepend("<div class=\"showopt\">Show Source</div><br style=\"line-height:22px;\"/>");
+       		$('pre.r', this).children('code').attr('class', 'folded');     
+       		}      // add button to output chunks     
+		if ( $(this).hasClass('o') ) {       
+			$('pre:not(.r)', this).has('code').prepend("<div class=\"showopt\">Show Output</div><br style=\"line-height:22px;\"/>");       
+			$('pre:not(.r)', this).children('code:not(r)').addClass('folded');        // add button to plots       
+			$(this).find('img').wrap('<pre class=\"plot\"></pre>');       
+			$('pre.plot', this).prepend("<div class=\"showopt\">Show Plot</div><br style=\"line-height:22px;\"/>");       
+			$('pre.plot', this).children('img').addClass('folded');      
+			}   
+});    // hide all chunks when document is loaded   
+	$('.folded').css('display', 'none')    // function to toggle the visibility   
+	$('.showopt').click(function() {     
+			var label = $(this).html();     
+			if (label.indexOf("Show") >= 0) {       
+				$(this).html(label.replace("Show", "Hide"));     
+			} else {
+			  $(this).html(label.replace("Hide", "Show"));     
+			}     
+	$(this).siblings('code, img').slideToggle('fast', 'swing');   
+	}); 
+}); 
+```
+
+```{=html}
+<style type="text/css">
+.showopt {   
+  background-color: #004c93;   color: #FFFFFF;    width: 100px;   height: 20px;   text-align: center;   vertical-align: middle !important;   float: right;   font-family: sans-serif;   border-radius: 8px; 
+  }
+.showopt:hover {     
+        background-color: #dfe4f2;
+        color: #004c93; 
+        }  
+pre.plot {   
+        background-color: white !important; 
+        } 
+.tablelines table, .tablelines td, .tablelines th {
+        border: 1px solid black;
+        }
+.centrado {
+    text-align: center;
+}
+.table.center {
+    margin-left:auto; 
+    margin-right:auto;
+  }
+/* https://vivekjaiskumar.medium.com/css-is-and-not-selector-17c942ec83f :is()*/
+/* Applies to outputs that are not code other than R*/
+pre {
+  overflow-x: auto !important;
+}
+pre code {
+  word-wrap: normal !important;
+  white-space: pre !important;
+}
+/*
+pre:not(.sourceCode) { 
+  white-space: nowrap !important;
+}
+*/
+.sourceCode { /* Important gives precedence  */
+  font-size: 10px !important;
+  line-height: 50% !important;
+}
+body{ /* Normal  */
+      text-align: justify;
+  }
+.superbigimage{
+    overflow-y:scroll;
+    height:350px;
+    white-space: nowrap;
+    overflow-x: auto; 
+    width:100%;
+}
+.superbigimage img{
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+.message { color:#446C6E; font-family: monospace;font-size: 10px; line-height: 110%; font-weight: bold;}
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 5px; text-align: justify;}
+div.red { background-color:#e6bab1; border-radius: 5px; padding: 5px; text-align: justify;}
+.pandoc-table { /* Should add !important; but it seems no necessary  */
+  margin-left:auto; /* To center */
+  margin-right:auto;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 11px;
+  overflow-y: auto;
+  max-height:450px !important;
+  white-space: nowrap;
+  overflow-x: auto; 
+  width:450px;
+}
+.pandoc-table th {/* header */
+text-align: center !important;
+font-size: 10px;
+padding: 0px;
+}
+.pandoc-table td {
+text-align: left !important;
+font-size: 9px;
+padding: 0px;
+}
+.pandoc-table caption {
+    text-align: left !important;
+    font-size: 11px !important;
+}
+.controlly{
+    overflow-y:scroll;
+    height:350px;
+    overflow-x: scroll; 
+}
+</style>
+```
+```{=html}
+<!-- We gotta do each function to hide code and outputs per section, by every ID, we gotta create a different function -->
+<script>
+function myFunction1() {
+    var x = document.getElementById("myDIV");
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+</script>
+<script>
+function myFunction2() {
+    var x = document.getElementById("myDIV2");
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+</script>
+```
+
+```{r setup0,include=T}
+rm(list=ls());gc()
+
+Sys.setlocale("LC_COLLATE", "Spanish_Chile.1252")
+Sys.setlocale("LC_COLLATE", "Spanish_Chile.1252")
+Sys.setlocale("LC_CTYPE", "Spanish_Chile.1252")
+Sys.setlocale("LC_MONETARY", "Spanish_Chile.1252")
+Sys.setlocale("LC_TIME", "Spanish_Chile.1252")
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.kable.NA = '')
+```
+
+<!---
+https://www.emol.com/noticias/Nacional/2022/03/23/1055776/gobierno-plan-reducir-listas-espera.html
+https://m.cooperativa.cl/noticias/site/artic/20220422/pags-amp/20220422070330.html
+https://www.emol.com/noticias/Nacional/2022/03/23/1055776/gobierno-plan-reducir-listas-espera.html
+https://www.minsal.cl/subsecretario-de-redes-asistenciales-visito-operativo-de-listas-de-espera-en-hospital-san-borja-arriaran/
+--->
+
+```{r setup,include=T}
+if(!require(pacman)){install.packages("pacman")}
+if(!require(devtools)){install.packages("devtools", type = "win.binary", dependencies=T)}
+#pacman::p_unlock(lib.loc = pacman::p_path())
+pacman::p_load(devtools, car, tidyverse, janitor, imputeTS, sjPlot, zoo, compareGroups, forecast, lubridate, gganimate, data.table, CausalImpact, panelView, ggforce, tsModel, astsa, plm, gsynth, Synth, CausalMBSTS, parallel, doParallel, PanelMatch, kableExtra, Amelia, missRanger, pglm, tabulizer, install=F)
+# Calculate the number of cores
+no_cores <- detectCores() - 1
+cl<-makeCluster(no_cores)
+registerDoParallel(cl)
+```
+</div>
+
+# `r format(Sys.time(),'%B %d, %Y')`
+
+
+```{r 1a-limp-var, echo=T, paged.print=TRUE,eval=T}
+bd_forloop<- expand.grid(cod_deis=unique(cons_brechas_gine$cod_deis), cod_sigte=setdiff(unique(cons_brechas_gine$cod_sigte),"07-003"))
+
+vec_columnas<-
+c("consultas", "consultas_nueva", "consultas_control", "pertinentes", "nsp", "nsp_nueva", "altas", "entradas", "sum_le")
+
+cons_brechas_gine_nas<-
+cons_brechas_gine %>% 
+  dplyr::mutate(across(c("consultas","consultas_nueva", "consultas_control", "pertinentes", "nsp", "nsp_nueva", "altas", "n_entradas_tot"),~ifelse(.==0, NA,.))) %>%
+
+df<-data.frame()
+for (x in 1:length(vec_columnas)){
+  i<-vec_columnas[x]
+  for (val in 1:nrow(bd_forloop)){
+    j1<- bd_forloop[val,"cod_deis"]
+    j2<- bd_forloop[val,"cod_sigte"]
+    print(paste0("Casos de cod= ",j1," cod_sigte= ",j2," para columna ",i))
+    set.seed(2125)
+    imp<-imputeTS::na_kalman(subset(cons_brechas_gine, cod_deis==j1 & cod_sigte==j2, i))[[1]]
+    ano_mes<-subset(cons_brechas_gine_nas, cod_deis==j1 & cod_sigte==j2, c("ano","mes"))
+    df<-
+    bind_rows(df,cbind.data.frame(
+                     cod_deis= rep(j1,length(imp)), cod_sigte= rep(j2,length(imp)), value=rep(i,length(imp)),
+                     ano=ano_mes[,1],
+                     mes=ano_mes[,2],
+                     imp=as.numeric(imp)))
+  }
+}
+invisible("Opción A, imputación con KALMAN para cada serie")
+cons_brechas_gine_a_imp<-
+tidyr::pivot_wider(df,names_from ="value", values_from=imp)%>% 
+  dplyr::mutate(fecha=as.Date(paste0(ano,"_",mes,"_01"),"%Y_%m_%d")) %>% 
+  dplyr::mutate(trat_t=dplyr::case_when(ano==2020 & mes>= 4~1,T~ 0))%>% 
+  dplyr::mutate(razon_do=consultas_nueva/entradas) %>% 
+  dplyr::mutate(lev_ano_mes= as.numeric(factor(paste0(ano,"_",sprintf("%.2d", mes)),levels=vector_ano_mes$ano_mes)))%>% 
+  dplyr::mutate(id=paste0(cod_deis,"_",cod_sigte))
+
+cons_brechas_gine_imp_a_wide<-
+  cons_brechas_gine_a_imp %>% 
+  dplyr::mutate(trat_t=dplyr::case_when(mes>= 4~1,T~ 0))%>% 
+  data.frame() %>% 
+tidyr::pivot_wider(id_cols=c(cod_deis, cod_sigte, trat_t, mes),names_from ="ano", values_from=c(vec_columnas, "razon_do"))
+```
+
+
+```{r 1b-limp-var, echo=T, paged.print=TRUE,eval=T}
+
+invisible("Opción B, imputación con forest trees: missranger")
+
+set.seed(2125)
+cons_brechas_gine_b_imp <- missRanger::missRanger(dplyr::mutate(dplyr::select(cons_brechas_gine_nas,id,lev_ano_mes,consultas, consultas_nueva, consultas_control, pertinentes, nsp, nsp_nueva, altas, entradas, sum_le),rn=row_number()), . ~ . - id -rn, pmm.k = 6, num.trees = 500)
+
+
+cons_brechas_gine_b_imp <-
+  cons_brechas_gine_b_imp %>% 
+    tidyr::separate(id,c("cod_deis", "cod_sigte"),sep="_") %>% 
+    dplyr::mutate(razon_do=consultas_nueva/entradas) %>% 
+    dplyr::left_join(cbind(rn=1:length(vector_ano_mes$ano_mes),vector_ano_mes), by=c("lev_ano_mes"="rn")) %>% 
+  dplyr::mutate(id=paste0(cod_deis,"_",cod_sigte))%>% 
+  data.frame() %>%
+  tidyr::separate(ano_mes, c("ano","mes"),sep="_") %>% 
+  dplyr::mutate(mes=as.numeric(mes))  %>% 
+  dplyr::mutate(trat_t=dplyr::case_when(ano==2020 & mes>= 4~1,T~ 0))%>% 
+  dplyr::mutate(fecha=as.Date(paste0(ano,"_",mes,"_01"),"%Y_%m_%d")) %>% 
+  dplyr::mutate(lev_ano_mes= as.numeric(factor(paste0(ano,"_",sprintf("%.2d", mes)),levels=vector_ano_mes$ano_mes)))
+  
+cons_brechas_gine_imp_b_wide<-
+  cons_brechas_gine_b_imp %>% 
+  dplyr::mutate(trat_t=dplyr::case_when(mes>= 4~1,T~ 0))%>% 
+tidyr::pivot_wider(id_cols=c(cod_deis, cod_sigte, trat_t, mes),names_from ="ano", values_from=c(vec_columnas, "razon_do"))
+```
+
+```{r 1c-limp-var, echo=T, paged.print=TRUE,eval=F}
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_
+#https://fondecytacc.github.io/SUD_health_Chile.github.io/Matching_Process1_APR_22#Imputation
+set.seed(2125)
+amelia_fit <- amelia(dplyr::mutate(dplyr::select(cons_brechas_gine,id,lev_ano_mes,consultas, consultas_nueva, consultas_control, pertinentes, nsp, nsp_nueva, altas, entradas, sum_le),rn=row_number()) %>% data.frame(), 
+                      m=50, 
+                      parallel = "multicore", #noms = "row",
+                      idvars="rn",#"hash_key","rn"
+                      #noms= c("cod_deis"),
+                      #ords= c("trimestre"),
+                      cs = "id",
+                      ts = "lev_ano_mes",
+                      incheck = TRUE)
+#no es muy bueno
+compare.density(amelia_fit,var="sum_le")
+```
+
+<br>
+
+## Paso 2. Explorar trayectorias
+
+Para hacer efectos mixtos, debería ver la cantidad de casos acumulados y el log de eso, asumiendo exponencialidad por recuento de casos. También explorar si hay algún efecto de autocorrelación.
+
+::: controlly
+```{r 2a-exp-tray, echo=T, paged.print=TRUE,eval=T}
+cons_brechas_gine_a_imp%>%
+  #dplyr::filter(lev_ano_mes %in% 6:26) %>% 
+  knitr::kable("markdown", caption="Muestra de los datos (imp A)")
+```
+:::
+
+<br>
+
+::: controlly
+```{r 2b-exp-tray, echo=T, paged.print=TRUE,eval=T}
+cons_brechas_gine_b_imp%>%
+  #dplyr::filter(lev_ano_mes %in% 6:26) %>% 
+  knitr::kable("markdown", caption="Muestra de los datos (imp B)")
+```
+:::
+
+<br>
+
+:::red
+Los datos de prueba se definieron desde `lev_ano_mes`, correspondiente a los meses **6 (Junio 2018) al 26 (Febrero 2020)**. Estos meses nos darán información de la estructura de la serie de tiempo que se utilizará en el análisis. La serie de tiempo que sirve de entrada para la exploración toma el **mes** como unidad de tiempo.
+:::
+
+
+`r warning(paste0("**Trabajaré con los datos imputados para el resto de los valores (jun 18 a feb 20)**"))`
+
+Primero vemos si existe una especie de rezago en las variables y correlación serial.
+
+<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:500px; overflow-x: scroll; width:100%;">
+
+```{r 3a-exp-tray, echo=T, paged.print=TRUE,eval=T, fig.retina=2, fig.height=20}
+#If p-value < 0.05 then no unit roots present
+#tseries::adf.test(pdata.frame(cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"))$rem_consulta , k=1)
+#vec_columnas
+
+invisible("Forma de ver autocorrelación")
+par(mfrow=c(4,8))
+for (x in 1:length(vec_columnas)){
+  for (i in 1:length(unique(cons_brechas_gine_a_imp$id))){  
+    cat("\n\n")
+    cat("#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_")
+    cat(paste0("### TBATS para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
+    cat("\n\n")
+      print(acf(
+      ts(subset(cons_brechas_gine_a_imp,subset= id== unique(cons_brechas_gine_a_imp$id)[i] & lev_ano_mes %in% 6:26, select= vec_columnas[x])),lag.max = 12, main=paste0("ACF para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
+      )
+    }
+}
+
+#dev.off()
+```
+</div>
+
+<br>
+
+<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:600px; overflow-x: scroll; width:100%;">
+
+```{r 3b-exp-tray, echo=T, paged.print=TRUE,eval=T}
+#https://search.r-project.org/CRAN/refmans/collapse/html/psacf.html
+#vec_columnas
+
+collapse::psacf(data.frame(subset(cons_brechas_gine_a_imp, lev_ano_mes %in% 6:26), index = c("cod_deis","lev_ano_mes")), rem_consulta + rem_consulta_nueva+ rem_consulta_control+ rem_pertinentes+ rem_nsp+ rem_altas + entradas+ sum_le  ~ cod_deis, ~lev_ano_mes) 
+```
+</div>
+
+<br>
+
+```{r 4a-exp-tray, echo=T, paged.print=TRUE,eval=F}
+#https://rdrr.io/cran/panelAR/man/panelAR.html
+```
+
+<br>
+
+A continuación se muestra un análisis TBATS. Sus iniciales dan cuenta de T (regresores trigonométricos para múltiples temporalidades/estacionalidades), B (transformaciones box-cox que corrigen por el efecto de normalidad en los datos), A (la inclusión de errores autorregresivos y medias móviles), T(tendencia) y S (estacionalidad). Este modelo identifica automáticamente los parámetros que reducen la complejidad de los datos.
+
+<br>
+
+<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:500px; overflow-x: scroll; width:100%;">
+
+```{r 5a-exp-tray, echo=T, paged.print=TRUE,eval=T}
+#vec_columnas
+#https://fondecytacc.github.io/paperestallido/BD_Compilation.html#12_TBATS
+
+for (x in 1:length(vec_columnas)){
+  for (i in 1:length(unique(cons_brechas_gine_a_imp$id))){  
+    cat("\n\n")
+    cat("#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_")
+    cat(paste0("### TBATS para ", vec_columnas[x], ", para  ", unique(cons_brechas_gine_a_imp$id)[i]))
+    cat("\n\n")
+      print(tbats(
+      ts(subset(cons_brechas_gine_a_imp,subset= id== unique(cons_brechas_gine_a_imp$id)[i] & lev_ano_mes %in% 6:26, select= vec_columnas[x]))
+      ))
+    }
+}
+```
+
+</div>
+
+
+<br>
+
+```{r 6b-exp-tray, echo=T, paged.print=TRUE,eval=F}
+g <- plm(rem_consulta ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), model="random")
+
+pdwtest(g, alternative="two.sided")
+#https://rdrr.io/rforge/plm/man/pbgtest.html
+pbgtest(g, order = 14) #es necesario analizar dónde se ubica el rezago
+#https://rdrr.io/rforge/plm/man/pbltest.html
+pbltest(g)
+
+pbsytest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), test = "re", re.normal = F)
+pbsytest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), test = "re", re.normal = T)
+pbsytest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), test = "j")
+pbsytest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), test = "ar")
+
+#https://rdrr.io/rforge/plm/man/pwartest.html
+pwartest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"))
+#First–differencing–based test of serial correlation for (the idiosyncratic component of) the errors in either levels or first–differenced panel models.
+#NO SÉ SI SIRVE
+pwfdtest(log(rem_consulta) ~ rem_altas, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"))
+#https://rdrr.io/rforge/plm/man/pbnftest.html
+pbnftest(g)
+pbnftest(g, test = "lbi")
+
+#https://cran.r-project.org/web/packages/plm/vignettes/A_plmPackage.html
+
+#https://www.princeton.edu/~otorres/Panel101R.pdf
+#HETEROSCKEDACITY
+# The --vcovHC– function estimates three heteroskedasticity-consistent covariance
+# estimators:
+# • "white1" - for general heteroskedasticity but no serial correlation. Recommended for
+# random effects.
+# • "white2" - is "white1" restricted to a common variance within groups. Recommended
+# for random effects.
+# • "arellano" - both heteroskedasticity and serial correlation. Recommended for fixed
+# effects.
+# The following options apply*:
+# • HC0 - heteroskedasticity consistent. The default.
+# • HC1,HC2, HC3 – Recommended for small samples. HC3 gives less weight to influential
+# observations.
+# • HC4 - small samples with influential observations
+# • HAC - heteroskedasticity and autocorrelation consistent (type ?vcovHAC for more
+# details)
+t(sapply(c("HC0", "HC1", "HC2", "HC3", "HC4"), function(x) sqrt(diag(vcovHC(g, type = x)))))
+
+#COLINEALIDAD
+car::vif(plm(rem_consulta ~ rem_altas+ razon_do, data = cons_brechas_gine_a_imp, index = c("cod_deis","lev_ano_mes"), model="random"))
+
+anb <- pglm(union ~ wage + exper + rural, UnionWage, family ='negbin',
+model = "pooling", method = "bfgs", print.level = 3, R = 5)
+
+```
+
+
+---
+
+```{r 2-analysis, echo=T, paged.print=TRUE,eval=F}
+#https://blog.devgenius.io/causal-inference-on-time-series-covid-19-data-3cbba9ec35f3
+#https://github.com/klarsen1/MarketMatching
+#https://web.pdx.edu/~crkl/WISE2017/TSAR-1.pdf
+#https://fondecytacc.github.io/paperestallido/Causal_Impact2_cons_trauma.html
+#https://fondecytacc.github.io/paperestallido/BD_Compilation.html
+#https://mran.microsoft.com/snapshot/2018-07-03/web/packages/plm/vignettes/plm.pdf
+causal.2 <- CausalMBSTS(y, components = c("trend", "cycle"), cycle.period = 75,
+                        dates = dates, int.date = int.date, s0.r = 0.01*diag(2),
+                        s0.eps = 0.1*diag(2), niter = 100, burn = 10)
+```
+
+```{r 2-feriados, echo=T, paged.print=TRUE,eval=F}
+
+feriados<- readr::read_csv("https://docs.google.com/spreadsheets/d/1Kd8SLHFLohGKCuJHa3cxbhkTH9691BCd_1ryCKUM_UA/export?format=csv&id=1Kd8SLHFLohGKCuJHa3cxbhkTH9691BCd_1ryCKUM_UA&gid=208597553",skip=2)%>%
+    dplyr::mutate(`Día`=gsub(" de ", " ", `Día`))
+#agrego el día viernes
+feriados<-feriados%>% rbind(feriados[6,])%>%
+    dplyr::mutate(`Día`=case_when(row_number()==19~"Viernes, 22 Mayo",TRUE~as.character(`Día`)))%>%
+    dplyr::mutate(date_format=lubridate::parse_date_time(`Día`, '%A, %d %B'))
+```
+
+
+# Session Info
+
+```{r session-info, echo=T, paged.print=TRUE}
+Sys.getenv("R_LIBS_USER")
+sessionInfo()
+warning(getwd())
+save.image("__paso2.RData")
+unlink("*_cache", recursive = T, force = T, expand = TRUE)
+sesion_info <- devtools::session_info()
+dplyr::select(
+  tibble::as_tibble(sesion_info$packages),
+  c(package, loadedversion, source)
+) %>% 
+  DT::datatable(filter = 'top', colnames = c('Row number' =1,'Variable' = 2, 'Percentage'= 3),
+              caption = htmltools::tags$caption(
+        style = 'caption-side: top; text-align: left;',
+        '', htmltools::em('Packages')),
+      options=list(
+initComplete = htmlwidgets::JS(
+        "function(settings, json) {",
+        "$(this.api().tables().body()).css({
+            'font-family': 'Helvetica Neue',
+            'font-size': '50%', 
+            'code-inline-font-size': '15%', 
+            'white-space': 'nowrap',
+            'line-height': '0.75em',
+            'min-height': '0.5em'
+            });",#;
+        "}")))
+```
